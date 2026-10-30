@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Califica tu compra · Raíces Andinas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body data-pagina="encuesta">
+
+<div id="encabezado"></div>
+
+<main class="contenedor" style="max-width:640px;padding-top:48px">
+    <div class="tarjeta" id="contenido" style="text-align:center">
+        <div class="vacio"><div class="icono-grande">⏳</div></div>
+    </div>
+</main>
+
+<div id="pie"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/i18next@23.10.0/i18next.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-http-backend@2.4.0/i18nextHttpBackend.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/main.js"></script>
+<script>
+    const { esc, pesos, t, imagen } = RA;
+    const parametros = new URLSearchParams(location.search);
+    const pedidoId = parametros.get('pedido');
+    const token = parametros.get('token') || '';
+
+    let datos = null;
+    let estrellas = 0;
+    let enviada = false;
+
+    async function cargar() {
+        const { ok, data } = await RA.api(`/api/encuestas/${encodeURIComponent(pedidoId)}?token=${encodeURIComponent(token)}`);
+        datos = ok ? data : { error: data.error || t('encuesta.invalida') };
+        dibujar();
+    }
+
+    function dibujar() {
+        const contenido = document.getElementById('contenido');
+        if (!datos) return;
+
+        if (datos.error) {
+            contenido.innerHTML = `<div class="vacio"><div class="icono-grande">🔒</div><h3>${esc(datos.error)}</h3>
+                <a href="/" class="btn btn-primario">${t('encuesta.ir_tienda')}</a></div>`;
+            return;
+        }
+
+        if (datos.respondida || enviada) {
+            contenido.innerHTML = `
+                <div class="exito-compra">
+                    <div class="check-grande">💚</div>
+                    <h2>${t('encuesta.gracias_titulo')}</h2>
+                    <p style="color:var(--texto-suave);margin-bottom:22px">${t('encuesta.gracias_texto')}</p>
+                    <a href="/#catalogo" class="btn btn-primario">${t('encuesta.seguir')}</a>
+                </div>`;
+            return;
+        }
+
+        contenido.innerHTML = `
+            <span class="etiqueta-seccion">${t('cuenta.pedido')} #${datos.pedido_id}</span>
+            <h1 style="font-size:1.9rem;margin-bottom:8px">${t('encuesta.titulo', { nombre: esc(datos.nombres.split(' ')[0]) })}</h1>
+            <p style="color:var(--texto-suave);margin-bottom:22px">${t('encuesta.subtitulo')}</p>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:24px">
+                ${datos.items.map(i => `<img src="${esc(imagen(i.imagen))}" alt="${esc(i.nombre)}" title="${esc(i.nombre)}" style="width:64px;height:64px;border-radius:12px;object-fit:cover" onerror="RA.imagenRespaldo(this)">`).join('')}
+            </div>
+            <div class="selector-estrellas" id="estrellas" role="radiogroup">
+                ${[1, 2, 3, 4, 5].map(n => `<button type="button" data-valor="${n}" class="${n <= estrellas ? 'activa' : ''}" aria-label="${n}">★</button>`).join('')}
+            </div>
+            <p id="textoEstrellas" style="color:var(--texto-suave);height:24px;margin:8px 0 18px">${estrellas ? t('encuesta.nivel_' + estrellas) : ''}</p>
+            <div class="campo" style="text-align:left">
+                <label for="comentario">${t('encuesta.comentario')}</label>
+                <textarea id="comentario" maxlength="1000" placeholder="${esc(t('encuesta.comentario_placeholder'))}"></textarea>
+            </div>
+            <div id="mensaje"></div>
+            <button class="btn btn-primario btn-lg btn-bloque" id="btnEnviar" ${estrellas ? '' : 'disabled'}>${t('encuesta.enviar')}</button>`;
+    }
+
+    document.addEventListener('click', async (e) => {
+        const estrella = e.target.closest('#estrellas button');
+        if (estrella) {
+            estrellas = parseInt(estrella.dataset.valor);
+            document.querySelectorAll('#estrellas button').forEach(b => b.classList.toggle('activa', b.dataset.valor <= estrellas));
+            document.getElementById('textoEstrellas').textContent = t('encuesta.nivel_' + estrellas);
+            document.getElementById('btnEnviar').disabled = false;
+            return;
+        }
+
+        if (e.target.id === 'btnEnviar') {
+            e.target.disabled = true;
+            const { ok, data } = await RA.api('/api/encuestas', {
+                method: 'POST',
+                body: { pedido_id: pedidoId, token, puntuacion: estrellas, comentario: document.getElementById('comentario').value }
+            });
+            if (ok || data.error?.includes('Ya calificaste')) {
+                enviada = true;
+                dibujar();
+            } else {
+                document.getElementById('mensaje').innerHTML = `<div class="alerta alerta-error">${esc(data.error)}</div>`;
+                e.target.disabled = false;
+            }
+        }
+    });
+
+    RA.alListo(() => datos ? dibujar() : cargar());
+</script>
+</body>
+</html>

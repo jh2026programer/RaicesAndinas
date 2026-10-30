@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de administración · Raíces Andinas</title>
+    <meta name="robots" content="noindex">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin">
+
+<!-- ===== LOGIN ===== -->
+<div class="admin-login" id="vistaLogin">
+    <div class="tarjeta">
+        <a href="/" class="logo" id="logoLogin"></a>
+        <h1 style="font-size:1.7rem">Panel de administración</h1>
+        <p style="color:var(--texto-suave);margin:6px 0 22px">Acceso exclusivo para el equipo de Raíces Andinas.</p>
+        <div id="loginMensaje"></div>
+        <form id="formLogin" novalidate>
+            <div class="campo">
+                <label for="adminUsuario">Correo</label>
+                <input type="email" id="adminUsuario" autocomplete="username" required>
+            </div>
+            <div class="campo">
+                <label for="adminPassword">Contraseña</label>
+                <div class="campo-password"><input type="password" id="adminPassword" autocomplete="current-password" required></div>
+            </div>
+            <button type="submit" class="btn btn-primario btn-lg btn-bloque" id="btnLogin">Ingresar</button>
+        </form>
+        <p style="text-align:center;margin-top:18px"><a href="/">← Volver a la tienda</a></p>
+    </div>
+</div>
+
+<!-- ===== PANEL ===== -->
+<div class="admin-layout oculto" id="vistaPanel">
+    <aside class="admin-lateral" id="lateral">
+        <a href="/" class="logo" id="logoPanel"></a>
+        <nav>
+            <button class="item activo" data-seccion="resumen"><span class="icono">📊</span> Resumen</button>
+            <button class="item" data-seccion="productos"><span class="icono">📦</span> Productos <span class="globo oculto" id="globoStock"></span></button>
+            <button class="item" data-seccion="pedidos"><span class="icono">🧾</span> Pedidos <span class="globo oculto" id="globoPedidos"></span></button>
+            <button class="item" data-seccion="categorias"><span class="icono">🏷️</span> Categorías</button>
+            <button class="item" data-seccion="reportes"><span class="icono">📈</span> Reportes</button>
+        </nav>
+        <div class="inferior">
+            <a class="item" href="/" target="_blank"><span class="icono">🛍️</span> Ver tienda</a>
+            <button class="item" id="btnSalir"><span class="icono">🚪</span> Cerrar sesión</button>
+        </div>
+    </aside>
+
+    <div class="admin-principal">
+        <header class="admin-barra">
+            <div style="display:flex;align-items:center;gap:10px">
+                <button class="btn-icono btn-menu-admin" id="btnMenuAdmin" aria-label="Menú"></button>
+                <h1 id="tituloSeccion">Resumen</h1>
+            </div>
+            <div class="quien"><span id="nombreAdmin"></span><span class="avatar" id="avatarAdmin">A</span></div>
+        </header>
+
+        <div class="admin-contenido">
+            <!-- RESUMEN -->
+            <section data-vista="resumen">
+                <div class="kpis" id="kpisResumen"></div>
+                <div class="panel-grid">
+                    <div>
+                        <div class="panel">
+                            <div class="panel-titulo"><h2>Últimos pedidos</h2><button class="btn btn-fantasma btn-sm" data-ir="pedidos">Ver todos →</button></div>
+                            <div class="tabla-contenedor" id="ultimosPedidos"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="panel">
+                            <div class="panel-titulo"><h2>Pedidos por estado</h2></div>
+                            <div id="pedidosPorEstado"></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-titulo"><h2>⚠️ Stock bajo</h2><button class="btn btn-fantasma btn-sm" data-ir="productos">Gestionar →</button></div>
+                            <div class="lista-compacta" id="stockBajo"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PRODUCTOS -->
+            <section data-vista="productos" class="oculto">
+                <div class="panel">
+                    <div class="barra-filtros">
+                        <label class="buscador" style="flex:1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                            <input type="search" id="buscarProducto" placeholder="Buscar producto...">
+                        </label>
+                        <button class="btn btn-primario" id="btnNuevoProducto">＋ Nuevo producto</button>
+                    </div>
+                    <div class="tabla-contenedor" id="tablaProductos"></div>
+                </div>
+            </section>
+
+            <!-- PEDIDOS -->
+            <section data-vista="pedidos" class="oculto">
+                <div class="panel">
+                    <div class="barra-filtros">
+                        <label class="buscador" style="flex:1">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                            <input type="search" id="buscarPedido" placeholder="Buscar por cliente, correo o número...">
+                        </label>
+                    </div>
+                    <div class="chips" id="filtroEstados" style="margin-bottom:16px"></div>
+                    <div class="tabla-contenedor" id="tablaPedidos"></div>
+                </div>
+            </section>
+
+            <!-- CATEGORÍAS -->
+            <section data-vista="categorias" class="oculto">
+                <div class="panel-grid" style="grid-template-columns:1fr 1.4fr">
+                    <div class="panel">
+                        <h2 style="font-size:1.15rem;margin-bottom:16px" id="tituloFormCategoria">Nueva categoría</h2>
+                        <form id="formCategoria" novalidate>
+                            <input type="hidden" id="categoriaId">
+                            <div class="campo">
+                                <label for="categoriaNombre">Nombre <span class="obligatorio">*</span></label>
+                                <input type="text" id="categoriaNombre" maxlength="50" placeholder="Ej: Bebidas" required>
+                            </div>
+                            <div class="campo">
+                                <label for="categoriaDescripcion">Descripción</label>
+                                <textarea id="categoriaDescripcion" rows="3" placeholder="Opcional"></textarea>
+                            </div>
+                            <div style="display:flex;gap:10px">
+                                <button type="submit" class="btn btn-primario" id="btnGuardarCategoria">Guardar</button>
+                                <button type="button" class="btn btn-secundario oculto" id="btnCancelarCategoria">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="panel">
+                        <h2 style="font-size:1.15rem;margin-bottom:16px">Categorías</h2>
+                        <div class="tabla-contenedor" id="tablaCategorias"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- REPORTES -->
+            <section data-vista="reportes" class="oculto">
+                <div class="panel barra-filtros" style="margin-bottom:20px">
+                    <label for="mesReporte" style="font-weight:600">Mes del reporte</label>
+                    <input type="month" id="mesReporte" style="width:auto">
+                </div>
+                <div class="kpis" id="kpisReporte"></div>
+                <div class="panel-grid">
+                    <div class="panel">
+                        <div class="panel-titulo"><h2>⭐ Calificaciones del chatbot</h2></div>
+                        <div id="distribucion"></div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-titulo"><h2>🏆 Productos más vendidos</h2></div>
+                        <div id="topProductos"></div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-titulo"><h2>💡 Sugerencias para la administración</h2></div>
+                    <div id="sugerencias"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL: PRODUCTO ===== -->
+<div class="modal-fondo" id="modalProducto" role="dialog" aria-modal="true">
+    <div class="modal">
+        <button class="modal-cerrar" data-cerrar aria-label="Cerrar">✕</button>
+        <div class="modal-cabecera"><h2 id="tituloModalProducto">Nuevo producto</h2></div>
+        <form class="modal-cuerpo" id="formProducto" novalidate>
+            <input type="hidden" id="productoId">
+            <div id="productoMensaje"></div>
+            <div class="form-producto">
+                <div>
+                    <div class="campo">
+                        <label for="productoNombre">Nombre <span class="obligatorio">*</span></label>
+                        <input type="text" id="productoNombre" maxlength="100" required>
+                    </div>
+                    <div class="fila-campos">
+                        <div class="campo">
+                            <label for="productoCategoria">Categoría</label>
+                            <select id="productoCategoria"></select>
+                        </div>
+                        <div class="campo">
+                            <label for="productoPrecio">Precio (COP) <span class="obligatorio">*</span></label>
+                            <input type="number" id="productoPrecio" min="1" step="100" required>
+                        </div>
+                        <div class="campo">
+                            <label for="productoStock">Stock</label>
+                            <input type="number" id="productoStock" min="0" value="0">
+                        </div>
+                        <div class="campo">
+                            <label for="productoStockMinimo">Stock mínimo</label>
+                            <input type="number" id="productoStockMinimo" min="0" value="5">
+                            <span class="ayuda">Por debajo de este valor se envía una alerta.</span>
+                        </div>
+                    </div>
+                    <div class="campo">
+                        <label for="productoImagen">Enlace de la imagen (URL)</label>
+                        <input type="url" id="productoImagen" maxlength="1000" placeholder="https://...">
+                        <span class="ayuda">Copia la dirección de una imagen de internet (clic derecho → "Copiar dirección de imagen").</span>
+                    </div>
+                    <div class="campo">
+                        <label for="productoDescripcion">Descripción</label>
+                        <textarea id="productoDescripcion" rows="3"></textarea>
+                    </div>
+                </div>
+                <div>
+                    <div class="vista-imagen">
+                        <img id="vistaImagen" alt="Vista previa">
+                        <div class="aviso-imagen oculto" id="avisoImagen">⚠️ No se pudo cargar la imagen. Revisa el enlace.</div>
+                    </div>
+                    <div class="campo" style="margin-top:16px">
+                        <label for="productoDescuento">Descuento (%)</label>
+                        <input type="number" id="productoDescuento" min="0" max="90" value="0">
+                        <span class="ayuda">0 = sin oferta. Con descuento aparece en "Ofertas".</span>
+                    </div>
+                    <label class="interruptor"><input type="checkbox" id="productoDestacado"> Producto destacado ★</label>
+                    <div class="precio-final-vista" id="precioFinalVista"></div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap">
+                <button type="button" class="btn btn-secundario" data-cerrar>Cancelar</button>
+                <button type="submit" class="btn btn-primario" id="btnGuardarProducto">Guardar producto</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===== MODAL: DETALLE DE PEDIDO ===== -->
+<div class="modal-fondo" id="modalPedido" role="dialog" aria-modal="true">
+    <div class="modal modal-sm" style="max-width:640px">
+        <button class="modal-cerrar" data-cerrar aria-label="Cerrar">✕</button>
+        <div class="modal-cuerpo" id="detallePedido"></div>
+    </div>
+</div>
+
+<script src="js/comun.js"></script>
+<script>
+    const { esc, pesos, imagen, toast } = RA;
+    const ESTADOS = ['pendiente', 'confirmado', 'enviado', 'entregado', 'cancelado'];
+    const NOMBRES_ESTADO = { pendiente: 'Pendiente', confirmado: 'Confirmado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
+    const COLORES_ESTADO = { pendiente: '#b7791f', confirmado: '#2b6cb0', enviado: '#6b46c1', entregado: '#2f855a', cancelado: '#c0392b' };
+    const TITULOS = { resumen: 'Resumen', productos: 'Productos', pedidos: 'Pedidos', categorias: 'Categorías', reportes: 'Reportes' };
+
+    const estado = { productos: [], categorias: [], pedidos: [], filtroEstado: 'todos' };
+    const fecha = (v) => new Date(v).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    // ============================================
+    // SESIÓN DEL ADMINISTRADOR
+    // ============================================
+    async function adminApi(url, { method = 'GET', body } = {}) {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = localStorage.getItem('adminToken');
+        if (token) headers.Authorization = `Bearer ${token}`;
+        try {
+            const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 401 && url !== '/api/admin/login') {
+                cerrarSesion();
+                toast('Tu sesión expiró. Inicia sesión de nuevo.', 'error');
+            }
+            return { ok: res.ok, status: res.status, data };
+        } catch {
+            return { ok: false, status: 0, data: { error: 'No hay conexión con el servidor. ¿Está corriendo "npm start"?' } };
+        }
+    }
+
+    function mostrarPanel() {
+        const admin = JSON.parse(localStorage.getItem('admin') || '{}');
+        document.getElementById('nombreAdmin').textContent = `${admin.nombres || ''} ${admin.apellidos || ''}`;
+        document.getElementById('avatarAdmin').textContent = (admin.nombres || 'A').charAt(0);
+        document.getElementById('vistaLogin').classList.add('oculto');
+        document.getElementById('vistaPanel').classList.remove('oculto');
+        irA(location.hash.slice(1) || 'resumen');
+        cargarCategorias();
+    }
+
+    function cerrarSesion() {
+        localStorage.removeItem('admin');
+        localStorage.removeItem('adminToken');
+        document.getElementById('vistaPanel').classList.add('oculto');
+        document.getElementById('vistaLogin').classList.remove('oculto');
+    }
+
+    document.getElementById('formLogin').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnLogin');
+        btn.disabled = true;
+        const { ok, data } = await adminApi('/api/admin/login', {
+            method: 'POST',
+            body: { usuario: document.getElementById('adminUsuario').value.trim(), password: document.getElementById('adminPassword').value }
+        });
+        btn.disabled = false;
+        if (ok) {
+            localStorage.setItem('admin', JSON.stringify(data.usuario));
+            localStorage.setItem('adminToken', data.token);
+            document.getElementById('formLogin').reset();
+            document.getElementById('loginMensaje').innerHTML = '';
+            mostrarPanel();
+        } else {
+            document.getElementById('loginMensaje').innerHTML = `<div class="alerta alerta-error">${esc(data.error || 'Credenciales incorrectas')}</div>`;
+        }
+    });
+
+    document.getElementById('btnSalir').addEventListener('click', () => {
+        if (confirm('¿Cerrar la sesión de administrador?')) cerrarSesion();
+    });
+
+    // ============================================
+    // NAVEGACIÓN ENTRE SECCIONES
+    // ============================================
+    function irA(seccion) {
+        if (!TITULOS[seccion]) seccion = 'resumen';
+        document.querySelectorAll('[data-vista]').forEach(v => v.classList.toggle('oculto', v.dataset.vista !== seccion));
+        document.querySelectorAll('.admin-lateral [data-seccion]').forEach(b => b.classList.toggle('activo', b.dataset.seccion === seccion));
+        document.getElementById('tituloSeccion').textContent = TITULOS[seccion];
+        document.getElementById('lateral').classList.remove('abierto');
+        history.replaceState(null, '', '#' + seccion);
+
+        ({ resumen: cargarResumen, productos: cargarProductos, pedidos: cargarPedidos, categorias: cargarCategorias, reportes: cargarReporte })[seccion]();
+    }
+
+    // ============================================
+    // RESUMEN
+    // ============================================
+    const kpi = (icono, clase, valor, etiqueta) =>
+        `<div class="kpi"><span class="icono ${clase}">${icono}</span><span class="valor">${valor}</span><span class="etiqueta">${etiqueta}</span></div>`;
+
+    async function cargarResumen() {
+        const { ok, data: d } = await adminApi('/api/admin/dashboard');
+        if (!ok) return;
+
+        actualizarGlobos(d.productos_stock_bajo, (d.pedidos_por_estado.find(e => e.estado === 'pendiente') || {}).cantidad || 0);
+
+        document.getElementById('kpisResumen').innerHTML =
+            kpi('💰', 'dorado', pesos(d.ingresos_mes), 'Ventas de este mes') +
+            kpi('📈', '', pesos(d.ingresos_totales), 'Ventas totales') +
+            kpi('🧾', 'azul', d.total_pedidos, 'Pedidos') +
+            kpi('👥', '', d.total_usuarios, 'Clientes registrados') +
+            kpi('⚠️', 'rojo', d.productos_stock_bajo, 'Productos con stock bajo') +
+            kpi('⭐', 'dorado', d.satisfaccion_promedio ? `${d.satisfaccion_promedio}/5` : '—', `Satisfacción (${d.satisfaccion_total} encuestas)`);
+
+        const totalPedidos = d.pedidos_por_estado.reduce((s, e) => s + e.cantidad, 0) || 1;
+        document.getElementById('pedidosPorEstado').innerHTML = ESTADOS.map(est => {
+            const cantidad = (d.pedidos_por_estado.find(e => e.estado === est) || {}).cantidad || 0;
+            return `<div class="barra-fila"><span>${NOMBRES_ESTADO[est]}</span>
+                <div class="pista"><div class="relleno" style="width:${cantidad / totalPedidos * 100}%;background:${COLORES_ESTADO[est]}"></div></div>
+                <span class="num">${cantidad}</span></div>`;
+        }).join('');
+
+        document.getElementById('ultimosPedidos').innerHTML = d.ultimos_pedidos.length
+            ? `<table class="tabla"><thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th class="derecha">Total</th></tr></thead><tbody>
+                ${d.ultimos_pedidos.map(p => `<tr style="cursor:pointer" data-ver-pedido="${p.id}">
+                    <td><strong>#${p.id}</strong></td><td>${esc(p.nombres)} ${esc(p.apellidos)}</td><td>${fecha(p.fecha)}</td>
+                    <td><span class="estado estado-${p.estado}">${NOMBRES_ESTADO[p.estado]}</span></td><td class="derecha">${pesos(p.total)}</td></tr>`).join('')}
+               </tbody></table>`
+            : '<p class="vacio">Aún no hay pedidos.</p>';
+
+        document.getElementById('stockBajo').innerHTML = d.productos_con_stock_bajo.length
+            ? d.productos_con_stock_bajo.map(p => `<div class="fila">
+                <img src="${esc(imagen(p.imagen))}" alt="" onerror="RA.imagenRespaldo(this)">
+                <span class="nombre">${esc(p.nombre)}</span>
+                <span class="pastilla ${p.stock === 0 ? 'cero' : 'bajo'}">${p.stock === 0 ? 'Agotado' : `${p.stock} / mín. ${p.stock_minimo}`}</span></div>`).join('')
+            : '<p style="color:var(--exito)">✅ Todo el inventario está por encima del mínimo.</p>';
+    }
+
+    function actualizarGlobos(stockBajo, pendientes) {
+        const globo = (id, n) => {
+            const el = document.getElementById(id);
+            el.textContent = n;
+            el.classList.toggle('oculto', !n);
+        };
+        globo('globoStock', stockBajo);
+        globo('globoPedidos', pendientes);
+    }
+
+    // ============================================
+    // PRODUCTOS
+    // ============================================
+    async function cargarProductos() {
+        const { ok, data } = await adminApi('/api/productos');
+        if (!ok) return;
+        estado.productos = data;
+        dibujarProductos();
+    }
+
+    function dibujarProductos() {
+        const busqueda = document.getElementById('buscarProducto').value.trim().toLowerCase();
+        const lista = estado.productos.filter(p => !busqueda || `${p.nombre} ${p.categoria_nombre}`.toLowerCase().includes(busqueda));
+
+        document.getElementById('tablaProductos').innerHTML = lista.length
+            ? `<table class="tabla"><thead><tr><th></th><th>Producto</th><th>Precio</th><th>Stock</th><th>Destacado</th><th></th></tr></thead><tbody>
+                ${lista.map(p => {
+                    const claseStock = p.stock === 0 ? 'cero' : p.stock <= p.stock_minimo ? 'bajo' : 'ok';
+                    return `<tr>
+                        <td style="width:62px"><img class="miniatura" src="${esc(imagen(p.imagen))}" alt="" onerror="RA.imagenRespaldo(this)"></td>
+                        <td><strong>${esc(p.nombre)}</strong><span class="secundario">${esc(p.categoria_nombre || 'Sin categoría')}</span></td>
+                        <td>${p.descuento > 0
+                            ? `<strong style="color:var(--rojo)">${pesos(p.precio_final)}</strong> <span class="pastilla cero">-${p.descuento}%</span><span class="secundario"><s>${pesos(p.precio)}</s></span>`
+                            : pesos(p.precio)}</td>
+                        <td><span class="pastilla ${claseStock}">${p.stock} uds</span><span class="secundario">mín. ${p.stock_minimo}</span></td>
+                        <td>${p.destacado ? '<span class="pastilla dorada">★ Sí</span>' : '—'}</td>
+                        <td><div class="acciones-celda">
+                            <button class="btn btn-secundario btn-sm" data-editar="${p.id}">Editar</button>
+                            <button class="btn btn-peligro btn-sm" data-eliminar="${p.id}">Eliminar</button>
+                        </div></td></tr>`;
+                }).join('')}
+               </tbody></table>`
+            : '<p class="vacio">No hay productos que coincidan.</p>';
+    }
+
+    function abrirModalProducto(producto = null) {
+        document.getElementById('tituloModalProducto').textContent = producto ? 'Editar producto' : 'Nuevo producto';
+        document.getElementById('productoMensaje').innerHTML = '';
+        document.getElementById('productoId').value = producto ? producto.id : '';
+        document.getElementById('productoNombre').value = producto ? producto.nombre : '';
+        document.getElementById('productoPrecio').value = producto ? producto.precio : '';
+        document.getElementById('productoStock').value = producto ? producto.stock : 0;
+        document.getElementById('productoStockMinimo').value = producto ? producto.stock_minimo : 5;
+        document.getElementById('productoDescuento').value = producto ? producto.descuento : 0;
+        document.getElementById('productoImagen').value = producto ? (producto.imagen || '') : '';
+        document.getElementById('productoDescripcion').value = producto ? (producto.descripcion || '') : '';
+        document.getElementById('productoDestacado').checked = producto ? producto.destacado : false;
+        document.getElementById('productoCategoria').innerHTML = '<option value="">Sin categoría</option>' +
+            estado.categorias.map(c => `<option value="${c.id}" ${producto && producto.categoria_id === c.id ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('');
+        actualizarVistaImagen();
+        actualizarPrecioFinal();
+        abrirModal('modalProducto');
+        setTimeout(() => document.getElementById('productoNombre').focus(), 100);
+    }
+
+    function actualizarVistaImagen() {
+        const url = document.getElementById('productoImagen').value.trim();
+        const img = document.getElementById('vistaImagen');
+        const aviso = document.getElementById('avisoImagen');
+        aviso.classList.add('oculto');
+        img.onerror = () => {
+            img.onerror = null;
+            img.src = imagen('');
+            if (url) aviso.classList.remove('oculto');
+        };
+        img.src = imagen(url);
+    }
+
+    function actualizarPrecioFinal() {
+        const precio = parseFloat(document.getElementById('productoPrecio').value) || 0;
+        const descuento = Math.min(90, Math.max(0, parseInt(document.getElementById('productoDescuento').value) || 0));
+        const final = Math.round(precio * (1 - descuento / 100));
+        document.getElementById('precioFinalVista').innerHTML = `Precio que verá el cliente<strong>${pesos(final)}</strong>` +
+            (descuento > 0 ? `<span style="color:var(--rojo)">Ahorra ${pesos(precio - final)} (-${descuento}%)</span>` : '');
+    }
+
+    ['productoPrecio', 'productoDescuento'].forEach(id => document.getElementById(id).addEventListener('input', actualizarPrecioFinal));
+    let temporizadorImagen;
+    document.getElementById('productoImagen').addEventListener('input', () => {
+        clearTimeout(temporizadorImagen);
+        temporizadorImagen = setTimeout(actualizarVistaImagen, 400);
+    });
+    document.getElementById('buscarProducto').addEventListener('input', dibujarProductos);
+    document.getElementById('btnNuevoProducto').addEventListener('click', () => abrirModalProducto());
+
+    document.getElementById('formProducto').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('productoId').value;
+        const cuerpo = {
+            nombre: document.getElementById('productoNombre').value.trim(),
+            precio: document.getElementById('productoPrecio').value,
+            stock: document.getElementById('productoStock').value,
+            stock_minimo: document.getElementById('productoStockMinimo').value,
+            descuento: document.getElementById('productoDescuento').value,
+            imagen: document.getElementById('productoImagen').value.trim(),
+            descripcion: document.getElementById('productoDescripcion').value.trim(),
+            categoria_id: document.getElementById('productoCategoria').value || null,
+            destacado: document.getElementById('productoDestacado').checked
+        };
+
+        const btn = document.getElementById('btnGuardarProducto');
+        btn.disabled = true;
+        const { ok, data } = await adminApi(id ? `/api/productos/${id}` : '/api/productos', { method: id ? 'PUT' : 'POST', body: cuerpo });
+        btn.disabled = false;
+
+        if (ok) {
+            cerrarModales();
+            toast(data.message);
+            cargarProductos();
+        } else {
+            document.getElementById('productoMensaje').innerHTML = `<div class="alerta alerta-error">${esc(data.error)}</div>`;
+        }
+    });
+
+    async function eliminarProducto(id) {
+        const p = estado.productos.find(x => x.id === id);
+        if (!confirm(`¿Eliminar "${p.nombre}"? Esta acción no se puede deshacer.`)) return;
+        const { ok, data } = await adminApi(`/api/productos/${id}`, { method: 'DELETE' });
+        if (ok) {
+            toast('Producto eliminado');
+            cargarProductos();
+        } else {
+            toast(data.error, 'error');
+        }
+    }
+
+    // ============================================
+    // PEDIDOS
+    // ============================================
+    async function cargarPedidos() {
+        const { ok, data } = await adminApi('/api/pedidos/todos');
+        if (!ok) return;
+        estado.pedidos = data;
+        dibujarPedidos();
+    }
+
+    function dibujarPedidos() {
+        const conteo = { todos: estado.pedidos.length };
+        estado.pedidos.forEach(p => conteo[p.estado] = (conteo[p.estado] || 0) + 1);
+        document.getElementById('filtroEstados').innerHTML = ['todos', ...ESTADOS].map(est =>
+            `<button class="chip ${estado.filtroEstado === est ? 'activo' : ''}" data-filtro="${est}">${est === 'todos' ? 'Todos' : NOMBRES_ESTADO[est]}<span class="cuenta">${conteo[est] || 0}</span></button>`).join('');
+
+        const busqueda = document.getElementById('buscarPedido').value.trim().toLowerCase().replace('#', '');
+        const lista = estado.pedidos.filter(p =>
+            (estado.filtroEstado === 'todos' || p.estado === estado.filtroEstado) &&
+            (!busqueda || `${p.id} ${p.nombres} ${p.apellidos} ${p.correo}`.toLowerCase().includes(busqueda)));
+
+        document.getElementById('tablaPedidos').innerHTML = lista.length
+            ? `<table class="tabla"><thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Productos</th><th class="derecha">Total</th><th>Estado</th><th></th></tr></thead><tbody>
+                ${lista.map(p => `<tr>
+                    <td><strong>#${p.id}</strong></td>
+                    <td>${esc(p.nombres)} ${esc(p.apellidos)}<span class="secundario">${esc(p.correo)}</span></td>
+                    <td>${fecha(p.fecha)}</td>
+                    <td>${p.detalles.reduce((s, d) => s + d.cantidad, 0)} uds${p.encuesta_puntuacion ? `<span class="secundario" style="color:var(--dorado-oscuro)">${'★'.repeat(p.encuesta_puntuacion)}</span>` : ''}</td>
+                    <td class="derecha"><strong>${pesos(p.total)}</strong></td>
+                    <td><select class="selector-estado estado-${p.estado}" data-estado-pedido="${p.id}" ${p.estado === 'cancelado' ? 'disabled' : ''}>
+                        ${ESTADOS.map(est => `<option value="${est}" ${est === p.estado ? 'selected' : ''}>${NOMBRES_ESTADO[est]}</option>`).join('')}
+                    </select></td>
+                    <td><button class="btn btn-secundario btn-sm" data-ver-pedido="${p.id}">Ver</button></td></tr>`).join('')}
+               </tbody></table>`
+            : '<p class="vacio">No hay pedidos con ese filtro.</p>';
+    }
+
+    async function cambiarEstado(id, nuevo, select) {
+        const pedido = estado.pedidos.find(p => p.id === id);
+        if (nuevo === 'cancelado' && !confirm(`¿Cancelar el pedido #${id}? El stock se devolverá al inventario y no podrás reactivarlo.`)) {
+            select.value = pedido.estado;
+            return;
+        }
+        select.disabled = true;
+        const { ok, data } = await adminApi(`/api/pedidos/${id}/estado`, { method: 'PUT', body: { estado: nuevo } });
+        if (ok) {
+            toast(`Pedido #${id}: ${NOMBRES_ESTADO[nuevo]}. Se notificó al cliente por correo.`);
+            pedido.estado = nuevo;
+            dibujarPedidos();
+        } else {
+            toast(data.error, 'error');
+            select.value = pedido.estado;
+            select.disabled = false;
+        }
+    }
+
+    async function verPedido(id) {
+        if (!estado.pedidos.length) await cargarPedidos();
+        const p = estado.pedidos.find(x => x.id === id);
+        if (!p) return;
+        const envio = parseFloat(p.costo_envio || 0);
+        document.getElementById('detallePedido').innerHTML = `
+            <span class="estado estado-${p.estado}">${NOMBRES_ESTADO[p.estado]}</span>
+            <h2 style="margin:10px 0 4px">Pedido #${p.id}</h2>
+            <p style="color:var(--texto-tenue);font-size:.9rem;margin-bottom:18px">${new Date(p.fecha).toLocaleString('es-CO')}</p>
+            <div class="tarjeta" style="padding:16px;margin-bottom:16px;background:var(--crema);box-shadow:none">
+                <strong>${esc(p.nombres)} ${esc(p.apellidos)}</strong><br>
+                <span style="font-size:.9rem;color:var(--texto-suave)">📧 ${esc(p.correo)}${p.telefono ? ` · 📱 ${esc(p.telefono)}` : ''}<br>📍 ${esc(p.direccion_envio)}<br>💳 ${esc(p.metodo_pago || '')}</span>
+            </div>
+            ${p.detalles.map(d => `<div class="pedido-linea"><span style="display:flex;gap:10px;align-items:center">
+                <img src="${esc(imagen(d.imagen))}" alt="" style="width:40px;height:40px;border-radius:8px;object-fit:cover" onerror="RA.imagenRespaldo(this)">
+                ${d.cantidad} × ${esc(d.nombre)} <span style="color:var(--texto-tenue)">(${pesos(d.precio_unitario)})</span></span><span>${pesos(d.subtotal)}</span></div>`).join('')}
+            <div class="pedido-linea"><span>Envío</span><span>${envio > 0 ? pesos(envio) : 'Gratis'}</span></div>
+            <div class="pedido-linea total"><span>Total</span><span>${pesos(p.total)}</span></div>
+            ${p.encuesta_puntuacion ? `<p style="margin-top:14px;color:var(--dorado-oscuro)">Encuesta del cliente: ${'★'.repeat(p.encuesta_puntuacion)}${'☆'.repeat(5 - p.encuesta_puntuacion)}</p>` : ''}`;
+        abrirModal('modalPedido');
+    }
+
+    document.getElementById('buscarPedido').addEventListener('input', dibujarPedidos);
+
+    // ============================================
+    // CATEGORÍAS
+    // ============================================
+    async function cargarCategorias() {
+        const { ok, data } = await adminApi('/api/categorias');
+        if (!ok) return;
+        estado.categorias = data;
+        document.getElementById('tablaCategorias').innerHTML = data.length
+            ? `<table class="tabla"><thead><tr><th>Nombre</th><th>Productos</th><th></th></tr></thead><tbody>
+                ${data.map(c => `<tr>
+                    <td><strong>${esc(c.nombre)}</strong><span class="secundario">${esc(c.descripcion || '')}</span></td>
+                    <td>${c.total_productos}</td>
+                    <td><div class="acciones-celda">
+                        <button class="btn btn-secundario btn-sm" data-editar-categoria="${c.id}">Editar</button>
+                        <button class="btn btn-peligro btn-sm" data-eliminar-categoria="${c.id}">Eliminar</button>
+                    </div></td></tr>`).join('')}
+               </tbody></table>`
+            : '<p class="vacio">Aún no hay categorías.</p>';
+    }
+
+    function limpiarFormCategoria() {
+        document.getElementById('formCategoria').reset();
+        document.getElementById('categoriaId').value = '';
+        document.getElementById('tituloFormCategoria').textContent = 'Nueva categoría';
+        document.getElementById('btnCancelarCategoria').classList.add('oculto');
+    }
+
+    document.getElementById('formCategoria').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('categoriaId').value;
+        const { ok, data } = await adminApi(id ? `/api/categorias/${id}` : '/api/categorias', {
+            method: id ? 'PUT' : 'POST',
+            body: { nombre: document.getElementById('categoriaNombre').value.trim(), descripcion: document.getElementById('categoriaDescripcion').value.trim() }
+        });
+        if (ok) {
+            toast(data.message);
+            limpiarFormCategoria();
+            cargarCategorias();
+        } else {
+            toast(data.error, 'error');
+        }
+    });
+    document.getElementById('btnCancelarCategoria').addEventListener('click', limpiarFormCategoria);
+
+    // ============================================
+    // REPORTES
+    // ============================================
+    async function cargarReporte() {
+        const input = document.getElementById('mesReporte');
+        if (!input.value) {
+            const hoy = new Date();
+            input.value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+        }
+        const [anio, mes] = input.value.split('-');
+        const { ok, data: r } = await adminApi(`/api/reportes/mensual?mes=${parseInt(mes)}&anio=${anio}`);
+        if (!ok) return;
+
+        document.getElementById('kpisReporte').innerHTML =
+            kpi('💰', 'dorado', pesos(r.ventas.ingresos), 'Ventas del mes') +
+            kpi('🧾', 'azul', r.ventas.pedidos, `Pedidos (${r.ventas.cancelados} cancelados)`) +
+            kpi('💬', '', r.personas_atendidas, 'Personas atendidas por el chat') +
+            kpi('⭐', 'dorado', `${r.calificaciones.promedio}/5`, `Calificación del chat (${r.calificaciones.total})`) +
+            kpi('🛍️', '', r.satisfaccion_compras.promedio ? `${r.satisfaccion_compras.promedio}/5` : '—', `Satisfacción de compras (${r.satisfaccion_compras.total})`);
+
+        const totalCalif = r.calificaciones.total || 1;
+        const coloresEstrellas = { 5: '#2f855a', 4: '#4f9a6e', 3: '#d4a853', 2: '#dd8a3c', 1: '#c0392b' };
+        document.getElementById('distribucion').innerHTML = r.calificaciones.total
+            ? [5, 4, 3, 2, 1].map(n => `<div class="barra-fila"><span>${'★'.repeat(n)}</span>
+                <div class="pista"><div class="relleno" style="width:${r.calificaciones.distribucion[n] / totalCalif * 100}%;background:${coloresEstrellas[n]}"></div></div>
+                <span class="num">${r.calificaciones.distribucion[n]}</span></div>`).join('')
+            : '<p class="vacio">Sin calificaciones este mes.</p>';
+
+        const maxUnidades = Math.max(1, ...r.ventas.top_productos.map(p => p.unidades));
+        document.getElementById('topProductos').innerHTML = r.ventas.top_productos.length
+            ? r.ventas.top_productos.map(p => `<div class="barra-fila" style="grid-template-columns:1fr 1fr 70px"><span>${esc(p.nombre)}</span>
+                <div class="pista"><div class="relleno" style="width:${p.unidades / maxUnidades * 100}%;background:var(--dorado)"></div></div>
+                <span class="num">${p.unidades} uds</span></div>`).join('')
+            : '<p class="vacio">Sin ventas este mes.</p>';
+
+        document.getElementById('sugerencias').innerHTML = r.sugerencias.map(s => {
+            const tipo = /Excelente|Mantener/.test(s) ? 'positiva' : /Buen|mejorar|Mejorar/.test(s) ? 'mejora' : /bajas|urgente|negativo/.test(s) ? 'critica' : '';
+            return `<div class="sugerencia ${tipo}">${esc(s)}</div>`;
+        }).join('');
+    }
+    document.getElementById('mesReporte').addEventListener('change', cargarReporte);
+
+    // ============================================
+    // MODALES Y EVENTOS GENERALES
+    // ============================================
+    function abrirModal(id) {
+        document.getElementById(id).classList.add('abierto');
+        document.body.style.overflow = 'hidden';
+    }
+    function cerrarModales() {
+        document.querySelectorAll('.modal-fondo').forEach(m => m.classList.remove('abierto'));
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('click', (e) => {
+        const el = (sel) => e.target.closest(sel);
+        if (el('[data-seccion]')) return irA(el('[data-seccion]').dataset.seccion);
+        if (el('[data-ir]')) return irA(el('[data-ir]').dataset.ir);
+        if (el('[data-editar]')) return abrirModalProducto(estado.productos.find(p => p.id === parseInt(el('[data-editar]').dataset.editar)));
+        if (el('[data-eliminar]')) return eliminarProducto(parseInt(el('[data-eliminar]').dataset.eliminar));
+        if (el('[data-ver-pedido]')) return verPedido(parseInt(el('[data-ver-pedido]').dataset.verPedido));
+        if (el('[data-filtro]')) {
+            estado.filtroEstado = el('[data-filtro]').dataset.filtro;
+            return dibujarPedidos();
+        }
+        if (el('[data-editar-categoria]')) {
+            const c = estado.categorias.find(x => x.id === parseInt(el('[data-editar-categoria]').dataset.editarCategoria));
+            document.getElementById('categoriaId').value = c.id;
+            document.getElementById('categoriaNombre').value = c.nombre;
+            document.getElementById('categoriaDescripcion').value = c.descripcion || '';
+            document.getElementById('tituloFormCategoria').textContent = `Editar "${c.nombre}"`;
+            document.getElementById('btnCancelarCategoria').classList.remove('oculto');
+            return;
+        }
+        if (el('[data-eliminar-categoria]')) {
+            const c = estado.categorias.find(x => x.id === parseInt(el('[data-eliminar-categoria]').dataset.eliminarCategoria));
+            const aviso = c.total_productos > 0 ? ` Sus ${c.total_productos} productos quedarán sin categoría.` : '';
+            if (confirm(`¿Eliminar la categoría "${c.nombre}"?${aviso}`)) {
+                adminApi(`/api/categorias/${c.id}`, { method: 'DELETE' }).then(({ ok, data }) => {
+                    toast(ok ? 'Categoría eliminada' : data.error, ok ? 'exito' : 'error');
+                    cargarCategorias();
+                });
+            }
+            return;
+        }
+        if (el('[data-cerrar]') || e.target.classList.contains('modal-fondo')) cerrarModales();
+    });
+
+    document.addEventListener('change', (e) => {
+        const select = e.target.closest('[data-estado-pedido]');
+        if (select) cambiarEstado(parseInt(select.dataset.estadoPedido), select.value, select);
+    });
+
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarModales(); });
+
+    document.getElementById('btnMenuAdmin').innerHTML = RA.ICONOS.menu;
+    document.getElementById('btnMenuAdmin').addEventListener('click', () => document.getElementById('lateral').classList.toggle('abierto'));
+
+    const logo = `${RA.ICONOS.logo}<b style="font-weight:600">Raíces <span>Andinas</span></b>`;
+    document.getElementById('logoLogin').innerHTML = logo;
+    document.getElementById('logoPanel').innerHTML = logo;
+
+    // Si ya había sesión de administrador, entrar directo al panel
+    if (localStorage.getItem('adminToken')) mostrarPanel();
+</script>
+</body>
+</html>

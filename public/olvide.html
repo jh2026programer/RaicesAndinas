@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperar contraseña · Raíces Andinas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body data-pagina="login">
+
+<div id="encabezado"></div>
+
+<main class="auth">
+    <div class="auth-visual">
+        <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&q=80" alt="" onerror="this.remove()">
+        <h2 data-i18n-html="olvide.visual_titulo">Tranquilo, <em>te ayudamos</em></h2>
+        <p data-i18n="olvide.visual_texto">Te enviaremos un enlace seguro a tu correo para que crees una contraseña nueva.</p>
+    </div>
+
+    <div class="auth-formulario">
+        <div class="auth-caja">
+            <h1 data-i18n="olvide.titulo">¿Olvidaste tu contraseña?</h1>
+            <p class="subtitulo" data-i18n="olvide.subtitulo">Escribe el correo con el que te registraste y te enviaremos un enlace para restablecerla.</p>
+
+            <div id="mensaje"></div>
+
+            <form id="formOlvide" novalidate>
+                <div class="campo">
+                    <label for="correo" data-i18n="login.correo">Correo electrónico</label>
+                    <input type="email" id="correo" autocomplete="email" placeholder="tu@correo.com" required>
+                </div>
+                <button type="submit" class="btn btn-primario btn-lg btn-bloque" id="btnEnviar" data-i18n="olvide.boton">Enviar enlace</button>
+            </form>
+
+            <div class="auth-enlaces">
+                <a href="/login.html" data-i18n="olvide.volver">← Volver a iniciar sesión</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/i18next@23.10.0/i18next.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-http-backend@2.4.0/i18nextHttpBackend.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/main.js"></script>
+<script>
+    const { t, esc } = RA;
+
+    document.getElementById('formOlvide').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const correo = document.getElementById('correo').value.trim();
+        const mensaje = document.getElementById('mensaje');
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+            mensaje.innerHTML = `<div class="alerta alerta-error">${esc(t('registro.correo_invalido'))}</div>`;
+            return;
+        }
+
+        const btn = document.getElementById('btnEnviar');
+        btn.disabled = true;
+        btn.textContent = '⏳ ' + t('olvide.enviando');
+
+        const { ok, data } = await RA.api('/api/password/olvido', { method: 'POST', body: { correo } });
+
+        if (ok) {
+            // Por seguridad el mensaje es el mismo exista o no la cuenta
+            document.getElementById('formOlvide').classList.add('oculto');
+            mensaje.innerHTML = `
+                <div class="alerta alerta-exito">📧 ${esc(t('olvide.enviado'))}</div>
+                <p style="color:var(--texto-suave);font-size:.9rem">${esc(t('olvide.enviado_nota'))}</p>`;
+        } else {
+            mensaje.innerHTML = `<div class="alerta alerta-error">${esc(data.error || t('toast.error_general'))}</div>`;
+            btn.disabled = false;
+            btn.textContent = t('olvide.boton');
+        }
+    });
+</script>
+</body>
+</html>

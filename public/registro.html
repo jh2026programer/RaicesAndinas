@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear cuenta · Raíces Andinas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body data-pagina="registro">
+
+<div id="encabezado"></div>
+
+<main class="auth">
+    <div class="auth-visual">
+        <img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1200&q=80" alt="" onerror="this.remove()">
+        <h2 data-i18n-html="registro.visual_titulo">Únete a la familia <em>Raíces Andinas</em></h2>
+        <p data-i18n="registro.visual_texto">Compra en segundos, sigue tus pedidos paso a paso y recibe ofertas exclusivas en tu correo.</p>
+    </div>
+
+    <div class="auth-formulario">
+        <div class="auth-caja" style="max-width:560px">
+            <h1 data-i18n="registro.titulo">Crear cuenta</h1>
+            <p class="subtitulo" data-i18n="registro.subtitulo">Solo te tomará un minuto.</p>
+
+            <div id="mensaje"></div>
+
+            <form id="formRegistro" novalidate>
+                <fieldset class="bloque-form">
+                    <legend data-i18n="registro.bloque_cuenta">🔑 Tu cuenta</legend>
+                    <div class="campo">
+                        <label for="correo"><span data-i18n="registro.correo">Correo electrónico</span> <span class="obligatorio">*</span></label>
+                        <input type="email" id="correo" autocomplete="email" placeholder="tu@correo.com" required>
+                    </div>
+                    <div class="fila-campos">
+                        <div class="campo">
+                            <label for="password"><span data-i18n="registro.password">Contraseña</span> <span class="obligatorio">*</span></label>
+                            <div class="campo-password"><input type="password" id="password" autocomplete="new-password" minlength="6" required></div>
+                            <span class="ayuda" data-i18n="registro.password_ayuda">Mínimo 6 caracteres.</span>
+                        </div>
+                        <div class="campo">
+                            <label for="password2"><span data-i18n="registro.password_confirm">Confirmar contraseña</span> <span class="obligatorio">*</span></label>
+                            <div class="campo-password"><input type="password" id="password2" autocomplete="new-password" required></div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="bloque-form">
+                    <legend><span data-i18n="registro.bloque_personal">👤 Datos personales</span> <span class="nivel publico" data-i18n="registro.nivel_publico">Público</span></legend>
+                    <div class="fila-campos">
+                        <div class="campo">
+                            <label for="nombres"><span data-i18n="registro.nombres">Nombres</span> <span class="obligatorio">*</span></label>
+                            <input type="text" id="nombres" autocomplete="given-name" required>
+                        </div>
+                        <div class="campo">
+                            <label for="apellidos"><span data-i18n="registro.apellidos">Apellidos</span> <span class="obligatorio">*</span></label>
+                            <input type="text" id="apellidos" autocomplete="family-name" required>
+                        </div>
+                        <div class="campo">
+                            <label for="telefono" data-i18n="registro.telefono">Teléfono</label>
+                            <input type="tel" id="telefono" autocomplete="tel" placeholder="300 123 4567">
+                        </div>
+                        <div class="campo">
+                            <label for="ciudad" data-i18n="registro.ciudad">Ciudad</label>
+                            <input type="text" id="ciudad" autocomplete="address-level2" placeholder="Bucaramanga">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="bloque-form">
+                    <legend><span data-i18n="registro.bloque_envio">📦 Datos de envío</span> <span class="nivel privado" data-i18n="registro.nivel_privado">Privado</span></legend>
+                    <div class="campo">
+                        <label for="direccion" data-i18n="registro.direccion">Dirección</label>
+                        <input type="text" id="direccion" autocomplete="street-address" placeholder="Calle 45 # 12-30">
+                        <span class="ayuda" data-i18n="registro.direccion_ayuda">La usaremos como dirección de envío predeterminada.</span>
+                    </div>
+                    <div class="campo">
+                        <label for="documento" data-i18n="registro.documento">Número de documento</label>
+                        <input type="text" id="documento" inputmode="numeric">
+                    </div>
+                </fieldset>
+
+                <fieldset class="bloque-form">
+                    <legend><span data-i18n="registro.bloque_salud">🛡️ Salud (opcional)</span> <span class="nivel sensible" data-i18n="registro.nivel_sensible">Sensible</span></legend>
+                    <p class="nota" data-i18n="registro.salud_nota">Solo si quieres que tengamos en cuenta alergias o restricciones alimentarias.</p>
+                    <div class="campo">
+                        <label for="eps" data-i18n="registro.eps">EPS</label>
+                        <input type="text" id="eps">
+                    </div>
+                    <div class="campo">
+                        <label for="condiciones" data-i18n="registro.condiciones_salud">Alergias o condiciones</label>
+                        <textarea id="condiciones" rows="2" data-i18n-placeholder="registro.condiciones_placeholder" placeholder="Ej: alergia a la miel"></textarea>
+                    </div>
+                    <label class="check" style="margin-bottom:16px">
+                        <input type="checkbox" id="consentimientoSensible">
+                        <span data-i18n="registro.consentimiento_sensible">Autorizo de forma explícita el tratamiento de mis datos de salud.</span>
+                    </label>
+                </fieldset>
+
+                <label class="check" style="margin-bottom:22px">
+                    <input type="checkbox" id="consentimientoPublico" required>
+                    <span><span data-i18n="registro.consentimiento_publico">Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012.</span> <span class="obligatorio">*</span></span>
+                </label>
+
+                <button type="submit" class="btn btn-primario btn-lg btn-bloque" id="btnRegistrar" data-i18n="registro.boton">Crear mi cuenta</button>
+            </form>
+
+            <div class="auth-enlaces">
+                <span><span data-i18n="registro.ya_tienes_cuenta">¿Ya tienes cuenta?</span> <a href="/login.html" data-i18n="registro.inicia_sesion">Inicia sesión</a></span>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/i18next@23.10.0/i18next.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-http-backend@2.4.0/i18nextHttpBackend.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/main.js"></script>
+<script>
+    const { t, esc } = RA;
+    if (RA.sesion()) location.replace('/cuenta.html');
+
+    const valor = (id) => document.getElementById(id).value.trim();
+
+    function mostrarMensaje(texto, tipo) {
+        const caja = document.getElementById('mensaje');
+        caja.innerHTML = `<div class="alerta alerta-${tipo}">${esc(texto)}</div>`;
+        caja.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function validar(datos) {
+        if (!datos.correo || !datos.password || !datos.nombres || !datos.apellidos) return t('registro.campos_obligatorios');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(datos.correo)) return t('registro.correo_invalido');
+        if (datos.password.length < 6) return t('registro.password_corta');
+        if (datos.password !== document.getElementById('password2').value) return t('registro.password_no_coinciden');
+        if (!datos.consentimiento_publico) return t('registro.consentimiento_requerido');
+        if ((datos.eps || datos.condiciones_salud) && !datos.consentimiento_sensible) return t('registro.consentimiento_sensible_requerido');
+        return null;
+    }
+
+    document.getElementById('formRegistro').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const datos = {
+            correo: valor('correo').toLowerCase(),
+            password: document.getElementById('password').value,
+            nombres: valor('nombres'),
+            apellidos: valor('apellidos'),
+            telefono: valor('telefono') || null,
+            ciudad: valor('ciudad') || null,
+            direccion: valor('direccion') || null,
+            documento: valor('documento') || null,
+            eps: valor('eps') || null,
+            condiciones_salud: valor('condiciones') || null,
+            consentimiento_publico: document.getElementById('consentimientoPublico').checked,
+            consentimiento_sensible: document.getElementById('consentimientoSensible').checked
+        };
+
+        const error = validar(datos);
+        if (error) return mostrarMensaje(error, 'error');
+
+        const btn = document.getElementById('btnRegistrar');
+        btn.disabled = true;
+        btn.textContent = '⏳ ' + t('registro.registrando');
+
+        const { ok, data } = await RA.api('/api/registro', { method: 'POST', body: datos });
+
+        if (!ok) {
+            mostrarMensaje(data.error || t('registro.error_servidor'), 'error');
+            btn.disabled = false;
+            btn.textContent = t('registro.boton');
+            return;
+        }
+
+        // Cuenta creada: se inicia sesión automáticamente
+        const login = await RA.api('/api/login', { method: 'POST', body: { correo: datos.correo, password: datos.password } });
+        if (login.ok) RA.guardarSesion(login.data.usuario, login.data.token);
+        mostrarMensaje(t('registro.exito', { nombre: datos.nombres }), 'exito');
+        setTimeout(() => location.href = login.ok ? '/' : '/login.html', 1500);
+    });
+</script>
+</body>
+</html>

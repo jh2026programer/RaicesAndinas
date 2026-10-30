@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+
+# Secretos y configuración local (ver .env.example)
+.env
+
+# Generados desde .env (incluyen la API key)
+automatizaciones/n8n/flujos/
+automatizaciones/n8n/centrales/
+
+# Datos personales de una versión antigua (no se usan; no deben publicarse)
+data/
+
+# Imágenes subidas por los usuarios (facturas): contienen datos de terceros
+uploads/
+
+# Material del curso
+Guia_*.pdf
+
+# Registros
+*.log
+
+# Archivos temporales de Office
+~$*

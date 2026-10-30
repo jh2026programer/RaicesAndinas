@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva contraseña · Raíces Andinas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body data-pagina="login">
+
+<div id="encabezado"></div>
+
+<main class="auth">
+    <div class="auth-visual">
+        <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&q=80" alt="" onerror="this.remove()">
+        <h2 data-i18n-html="restablecer.visual_titulo">Un nuevo <em>comienzo</em></h2>
+        <p data-i18n="restablecer.visual_texto">Elige una contraseña que no uses en otros sitios.</p>
+    </div>
+
+    <div class="auth-formulario">
+        <div class="auth-caja">
+            <h1 data-i18n="restablecer.titulo">Crea tu nueva contraseña</h1>
+            <p class="subtitulo" data-i18n="restablecer.subtitulo">Escríbela dos veces para confirmarla.</p>
+
+            <div id="mensaje"></div>
+
+            <form id="formRestablecer" class="oculto" novalidate>
+                <div class="campo">
+                    <label for="password" data-i18n="restablecer.nueva">Nueva contraseña</label>
+                    <div class="campo-password"><input type="password" id="password" autocomplete="new-password" minlength="6" required></div>
+                    <span class="ayuda" data-i18n="registro.password_ayuda">Mínimo 6 caracteres.</span>
+                </div>
+                <div class="campo">
+                    <label for="password2" data-i18n="registro.password_confirm">Confirmar contraseña</label>
+                    <div class="campo-password"><input type="password" id="password2" autocomplete="new-password" required></div>
+                </div>
+                <button type="submit" class="btn btn-primario btn-lg btn-bloque" id="btnGuardar" data-i18n="restablecer.boton">Guardar contraseña</button>
+            </form>
+
+            <div class="auth-enlaces">
+                <a href="/login.html" data-i18n="olvide.volver">← Volver a iniciar sesión</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/i18next@23.10.0/i18next.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-http-backend@2.4.0/i18nextHttpBackend.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/main.js"></script>
+<script>
+    const { t, esc } = RA;
+    const token = new URLSearchParams(location.search).get('token') || '';
+    const mensaje = document.getElementById('mensaje');
+
+    function enlaceInvalido() {
+        mensaje.innerHTML = `
+            <div class="alerta alerta-error">⏰ ${esc(t('restablecer.invalido'))}</div>
+            <a href="/olvide.html" class="btn btn-primario btn-bloque">${esc(t('restablecer.pedir_otro'))}</a>`;
+    }
+
+    // Al abrir la página se verifica que el enlace siga vigente
+    window.i18nListo.then(async () => {
+        const { ok, data } = await RA.api(`/api/password/validar?token=${encodeURIComponent(token)}`);
+        if (ok && data.valido) {
+            document.getElementById('formRestablecer').classList.remove('oculto');
+        } else {
+            enlaceInvalido();
+        }
+    });
+
+    document.getElementById('formRestablecer').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const password = document.getElementById('password').value;
+
+        if (password.length < 6) {
+            mensaje.innerHTML = `<div class="alerta alerta-error">${esc(t('registro.password_corta'))}</div>`;
+            return;
+        }
+        if (password !== document.getElementById('password2').value) {
+            mensaje.innerHTML = `<div class="alerta alerta-error">${esc(t('registro.password_no_coinciden'))}</div>`;
+            return;
+        }
+
+        const btn = document.getElementById('btnGuardar');
+        btn.disabled = true;
+
+        const { ok, data } = await RA.api('/api/password/restablecer', { method: 'POST', body: { token, password } });
+
+        if (ok) {
+            RA.cerrarSesion(null);
+            location.href = '/login.html?restablecida=1';
+        } else {
+            document.getElementById('formRestablecer').classList.add('oculto');
+            mensaje.innerHTML = `<div class="alerta alerta-error">${esc(data.error)}</div>
+                <a href="/olvide.html" class="btn btn-primario btn-bloque">${esc(t('restablecer.pedir_otro'))}</a>`;
+        }
+    });
+</script>
+</body>
+</html>

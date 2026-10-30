@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrito · Raíces Andinas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body data-pagina="carrito">
+
+<div id="encabezado"></div>
+
+<main class="contenedor">
+    <div class="encabezado-pagina">
+        <h1 class="titulo-pagina" data-i18n="carrito.titulo">Tu carrito</h1>
+        <p data-i18n="carrito.subtitulo">Revisa tus productos, confirma la dirección y finaliza tu pedido.</p>
+    </div>
+
+    <div id="contenidoCarrito">
+        <div class="vacio"><div class="icono-grande">⏳</div></div>
+    </div>
+</main>
+
+<div id="pie"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/i18next@23.10.0/i18next.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-http-backend@2.4.0/i18nextHttpBackend.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/main.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+    const { esc, pesos, t, imagen } = RA;
+
+    let config = { envio_costo: 8000, envio_gratis_desde: 80000 };
+    let catalogo = new Map();   // productos actuales del servidor (precio y stock reales)
+    let perfil = null;          // datos del cliente (para la dirección)
+    let pedidoExitoso = null;   // datos del pedido recién creado
+    let comprando = false;
+    let metodoPago = 'Efectivo contra entrega';
+
+    // ============================================
+    // CARGAR DATOS
+    // ============================================
+    async function cargar() {
+        const s = RA.sesion();
+        const [cfg, prods, usuario] = await Promise.all([
+            RA.api('/api/config'),
+            RA.api('/api/productos'),
+            s ? RA.api(`/api/usuario/${s.usuario.id}`) : Promise.resolve(null)
+        ]);
+        if (cfg.ok) config = cfg.data;
+        if (prods.ok) catalogo = new Map(prods.data.map(p => [p.id, p]));
+        if (usuario && usuario.ok) perfil = usuario.data;
+
+        sincronizarCarrito();
+        dibujar();
+    }
+
+    // Actualiza el carrito con precios/stock reales y quita productos que ya no existen
+    function sincronizarCarrito() {
+        if (catalogo.size === 0) return;
+        const items = RA.carrito.obtener()
+            .filter(i => catalogo.has(i.id))
+            .map(i => {
+                const p = catalogo.get(i.id);
+                return { ...i, nombre: p.nombre, precio: p.precio_final, precio_original: p.precio,
+                         descuento: p.descuento, imagen: p.imagen, stock: p.stock,
+                         cantidad: Math.min(i.cantidad, Math.max(p.stock, 0)) || i.cantidad };
+            });
+        localStorage.setItem('carrito', JSON.stringify(items));
+    }
+
+    // ============================================
+    // DIBUJAR
+    // ============================================
+    function dibujar() {
+        const contenedor = document.getElementById('contenidoCarrito');
+
+        if (pedidoExitoso) {
+            contenedor.innerHTML = `
+                <div class="tarjeta exito-compra">
+                    <div class="check-grande">✓</div>
+                    <h2>${t('carrito.exito_titulo')}</h2>
+                    <p style="color:var(--texto-suave);max-width:460px;margin:0 auto 6px">${t('carrito.exito_texto', { id: pedidoExitoso.pedido_id })}</p>
+                    <p style="font-size:1.3rem;font-weight:700;color:var(--verde-900);margin:14px 0 24px">${t('carrito.total')}: ${pesos(pedidoExitoso.total)}</p>
+                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+                        <a href="/cuenta.html#pedidos" class="btn btn-primario">${t('carrito.ver_pedidos')}</a>
+                        <a href="/#catalogo" class="btn btn-secundario">${t('carrito.seguir_comprando')}</a>
+                    </div>
+                </div>`;
+            return;
+        }
+
+        const items = RA.carrito.obtener();
+        if (items.length === 0) {
+            contenedor.innerHTML = `
+                <div class="tarjeta vacio">
+                    <div class="icono-grande">🛒</div>
+                    <h3>${t('carrito.vacio')}</h3>
+                    <p>${t('carrito.vacio_texto')}</p>
+                    <a href="/#catalogo" class="btn btn-primario">${t('carrito.ir_catalogo')}</a>
+                </div>`;
+            return;
+        }
+
+        const subtotal = items.reduce((suma, i) => suma + i.precio * i.cantidad, 0);
+        const envioGratis = subtotal > config.envio_gratis_desde;
+        const envio = envioGratis ? 0 : config.envio_costo;
+        const faltante = config.envio_gratis_desde - subtotal + 1;
+        const progreso = Math.min(100, (subtotal / config.envio_gratis_desde) * 100);
+        const hayProblemaStock = items.some(i => i.stock <= 0 || i.cantidad > i.stock);
+        const s = RA.sesion();
+
+        contenedor.innerHTML = `
+            <div class="carrito-grid">
+                <div class="lista-carrito">
+                    ${items.map(item => {
+                        const agotado = item.stock <= 0;
+                        return `
+                        <div class="item-carrito">
+                            <img src="${esc(imagen(item.imagen))}" alt="" onerror="RA.imagenRespaldo(this)">
+                            <div>
+                                <h3>${esc(item.nombre)}</h3>
+                                <div class="unitario">
+                                    ${pesos(item.precio)} ${t('carrito.cada_uno')}
+                                    ${item.descuento > 0 ? `<span class="insignia insignia-descuento" style="margin-left:6px;box-shadow:none">-${item.descuento}%</span>` : ''}
+                                </div>
+                                ${agotado ? `<div style="color:var(--rojo);font-size:.85rem;margin-top:4px">⚠️ ${t('productos.agotado')}</div>`
+                                          : item.cantidad >= item.stock ? `<div style="color:var(--ambar);font-size:.82rem;margin-top:4px">${t('carrito.maximo_stock', { count: item.stock })}</div>` : ''}
+                            </div>
+                            <div class="acciones">
+                                <span class="subtotal">${pesos(item.precio * item.cantidad)}</span>
+                                <div class="cantidad">
+                                    <button type="button" data-cambiar="${item.id}" data-delta="-1" aria-label="-">−</button>
+                                    <span>${item.cantidad}</span>
+                                    <button type="button" data-cambiar="${item.id}" data-delta="1" ${item.cantidad >= item.stock ? 'disabled' : ''} aria-label="+">+</button>
+                                </div>
+                                <button type="button" class="btn-quitar" data-quitar="${item.id}">🗑 ${t('carrito.quitar')}</button>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+
+                <aside class="tarjeta resumen">
+                    <h3>${t('carrito.resumen')}</h3>
+                    <div class="fila"><span>${t('carrito.subtotal')} (${RA.carrito.totalUnidades()})</span><strong>${pesos(subtotal)}</strong></div>
+                    <div class="fila"><span>${t('carrito.envio')}</span><strong>${envioGratis ? `<span class="gratis">${t('carrito.gratis')}</span>` : pesos(envio)}</strong></div>
+                    <div class="barra-envio">
+                        ${envioGratis ? `🎉 ${t('carrito.envio_gratis_logrado')}` : t('carrito.faltan_envio', { monto: pesos(faltante) })}
+                        <div class="progreso"><div style="width:${progreso}%"></div></div>
+                    </div>
+                    <div class="fila total"><span>${t('carrito.total')}</span><strong>${pesos(subtotal + envio)}</strong></div>
+
+                    ${s ? `
+                        <div class="campo" style="margin-top:18px">
+                            <label for="direccion">${t('carrito.direccion')} <span class="obligatorio">*</span></label>
+                            <input type="text" id="direccion" maxlength="200" value="${esc(document.getElementById('direccion')?.value ?? (perfil?.direccion || ''))}" placeholder="${esc(t('carrito.direccion_placeholder'))}">
+                        </div>
+                        <div class="campo">
+                            <label for="metodoPago">${t('carrito.metodo_pago')}</label>
+                            <select id="metodoPago">
+                                <option value="Efectivo contra entrega" ${metodoPago === 'Efectivo contra entrega' ? 'selected' : ''}>${t('carrito.pago_efectivo')}</option>
+                                <option value="Transferencia bancaria" ${metodoPago === 'Transferencia bancaria' ? 'selected' : ''}>${t('carrito.pago_transferencia')}</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primario btn-lg btn-bloque" id="btnComprar" ${hayProblemaStock || comprando ? 'disabled' : ''}>
+                            ${comprando ? '⏳ ' + t('carrito.procesando') : t('carrito.finalizar')}
+                        </button>
+                        ${hayProblemaStock ? `<p style="color:var(--rojo);font-size:.85rem;margin-top:10px">${t('carrito.corrige_stock')}</p>` : ''}
+                    ` : `
+                        <div class="alerta alerta-info" style="margin-top:18px">🔑 ${t('carrito.login_requerido')}</div>
+                        <a href="/login.html?volver=carrito" class="btn btn-primario btn-lg btn-bloque">${t('carrito.iniciar_sesion')}</a>
+                        <p style="text-align:center;margin-top:12px;font-size:.9rem">${t('carrito.sin_cuenta')} <a href="/registro.html">${t('carrito.registrate')}</a></p>
+                    `}
+                    <a href="/#catalogo" class="btn btn-fantasma btn-bloque" style="margin-top:8px">← ${t('carrito.seguir_comprando')}</a>
+                </aside>
+            </div>`;
+    }
+
+    // ============================================
+    // ACCIONES
+    // ============================================
+    function cambiarCantidad(id, delta) {
+        const items = RA.carrito.obtener();
+        const item = items.find(i => i.id === id);
+        if (!item) return;
+        item.cantidad = Math.min(item.cantidad + delta, item.stock);
+        RA.carrito.guardar(item.cantidad <= 0 ? items.filter(i => i.id !== id) : items);
+        dibujar();
+    }
+
+    function quitar(id) {
+        RA.carrito.guardar(RA.carrito.obtener().filter(i => i.id !== id));
+        RA.toast(t('toast.eliminado'));
+        dibujar();
+    }
+
+    async function finalizarCompra() {
+        const direccion = document.getElementById('direccion').value.trim();
+        if (!direccion) {
+            RA.toast(t('carrito.falta_direccion'), 'error');
+            document.getElementById('direccion').focus();
+            return;
+        }
+
+        comprando = true;
+        dibujar();
+
+        const { ok, status, data } = await RA.api('/api/pedidos', {
+            method: 'POST',
+            body: {
+                items: RA.carrito.obtener().map(i => ({ producto_id: i.id, cantidad: i.cantidad })),
+                direccion_envio: direccion,
+                metodo_pago: metodoPago
+            }
+        });
+
+        comprando = false;
+        if (ok) {
+            pedidoExitoso = data;
+            RA.carrito.guardar([]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            RA.toast(data.error || t('toast.error_general'), 'error');
+            if (status === 400) await cargar(); // refresca stock y precios
+        }
+        dibujar();
+    }
+
+    document.addEventListener('click', (e) => {
+        const btnCambiar = e.target.closest('[data-cambiar]');
+        if (btnCambiar) return cambiarCantidad(parseInt(btnCambiar.dataset.cambiar), parseInt(btnCambiar.dataset.delta));
+        const btnQuitar = e.target.closest('[data-quitar]');
+        if (btnQuitar) return quitar(parseInt(btnQuitar.dataset.quitar));
+        if (e.target.closest('#btnComprar')) finalizarCompra();
+    });
+
+    document.addEventListener('change', (e) => {
+        if (e.target.id === 'metodoPago') metodoPago = e.target.value;
+    });
+
+    RA.alListo(() => catalogo.size ? dibujar() : cargar());
+</script>
+</body>
+</html>

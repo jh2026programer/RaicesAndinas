@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raíces Andinas · Productos auténticos de los Andes</title>
+    <meta name="description" content="Café, miel, quinua, panela y más productos andinos cultivados por comunidades campesinas de Colombia.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body data-pagina="inicio">
+
+<div id="encabezado"></div>
+
+<main>
+    <!-- ===== PORTADA ===== -->
+    <section class="hero">
+        <div class="contenedor">
+            <div>
+                <span class="etiqueta-seccion" style="color:var(--dorado)" data-i18n="hero.etiqueta">Directo de las montañas</span>
+                <h1 data-i18n-html="hero.titulo">El sabor auténtico de <em>los Andes</em>, en tu mesa</h1>
+                <p data-i18n="hero.subtitulo">Café de origen, miel de páramo, quinua y panela artesanal, cultivados por comunidades campesinas y llevados hasta tu puerta.</p>
+                <div class="hero-acciones">
+                    <a href="#catalogo" class="btn btn-dorado btn-lg" data-i18n="hero.ver_productos">Ver productos</a>
+                    <a href="#ofertas" class="btn btn-secundario btn-lg" data-i18n="hero.ver_ofertas">Ofertas del mes</a>
+                </div>
+                <div class="hero-datos">
+                    <div><strong id="datoProductos">+10</strong><span data-i18n="hero.dato_productos">productos andinos</span></div>
+                    <div><strong>100%</strong><span data-i18n="hero.dato_natural">natural</span></div>
+                    <div><strong>24/7</strong><span data-i18n="hero.dato_asistente">asistente virtual</span></div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="marco">
+                    <img id="heroImagen" src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=900&q=80" alt="" onerror="RA.imagenRespaldo(this)">
+                </div>
+                <div class="hero-insignia">
+                    <span class="icono-circulo">🌱</span>
+                    <span data-i18n="hero.insignia">Comercio justo</span>
+                </div>
+            </div>
+        </div>
+        <svg class="hero-montanas" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0 120V70l120-40 110 30 150-55 140 45 120-30 160 55 130-40 150 35 120-25 140 40v35Z" fill="#234d36" opacity=".55"/>
+            <path d="M0 120V92l160-30 140 26 170-40 130 32 150-24 170 36 140-20 160 24 120-14v58Z" fill="#faf7f0"/>
+        </svg>
+    </section>
+
+    <!-- ===== BENEFICIOS ===== -->
+    <div class="contenedor" id="nosotros">
+        <div class="beneficios">
+            <div class="beneficio">
+                <span class="icono">🌱</span>
+                <div>
+                    <h3 data-i18n="beneficios.natural_titulo">100% natural</h3>
+                    <p data-i18n="beneficios.natural_texto">Cultivos sostenibles, sin químicos ni conservantes artificiales.</p>
+                </div>
+            </div>
+            <div class="beneficio">
+                <span class="icono">🏔️</span>
+                <div>
+                    <h3 data-i18n="beneficios.andes_titulo">Hecho en los Andes</h3>
+                    <p data-i18n="beneficios.andes_texto">Compramos directo a familias campesinas y apoyamos la economía local.</p>
+                </div>
+            </div>
+            <div class="beneficio">
+                <span class="icono">🚚</span>
+                <div>
+                    <h3 data-i18n="beneficios.envio_titulo">Envíos a todo el país</h3>
+                    <p data-i18n="beneficios.envio_texto">Entrega en 3 a 5 días. ¡Gratis en compras mayores a $80.000!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== OFERTAS ===== -->
+    <section class="seccion oculto" id="ofertas">
+        <div class="contenedor">
+            <div class="banda-ofertas">
+                <div class="seccion-encabezado">
+                    <div>
+                        <span class="etiqueta-seccion" data-i18n="ofertas.etiqueta">Por tiempo limitado</span>
+                        <h2 class="titulo-seccion" data-i18n="ofertas.titulo">Ofertas especiales</h2>
+                        <p class="subtitulo-seccion" data-i18n="ofertas.subtitulo">Descuentos reales en productos seleccionados: el precio que ves es el que pagas.</p>
+                    </div>
+                </div>
+                <div class="grid-productos" id="listaOfertas"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== CATÁLOGO ===== -->
+    <section class="seccion" id="catalogo">
+        <div class="contenedor">
+            <div class="seccion-encabezado">
+                <div>
+                    <span class="etiqueta-seccion" data-i18n="catalogo.etiqueta">Nuestra despensa</span>
+                    <h2 class="titulo-seccion" data-i18n="catalogo.titulo">Todos nuestros productos</h2>
+                </div>
+            </div>
+
+            <div class="herramientas">
+                <label class="buscador">
+                    <span class="sr-only" data-i18n="catalogo.buscar">Buscar</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input type="search" id="buscador" data-i18n-placeholder="catalogo.buscar_placeholder" placeholder="Buscar café, miel, quinua..." autocomplete="off">
+                </label>
+                <select id="orden" aria-label="Ordenar">
+                    <option value="destacados" data-i18n="catalogo.orden_destacados">Destacados primero</option>
+                    <option value="precio_asc" data-i18n="catalogo.orden_precio_asc">Precio: menor a mayor</option>
+                    <option value="precio_desc" data-i18n="catalogo.orden_precio_desc">Precio: mayor a menor</option>
+                    <option value="nombre" data-i18n="catalogo.orden_nombre">Nombre (A-Z)</option>
+                </select>
+            </div>
+            <div class="chips" id="categorias" role="group" aria-label="Categorías"></div>
+            <p class="resultado-busqueda" id="resultadoBusqueda"></p>
+
+            <div class="grid-productos" id="listaProductos">
+                <!-- Esqueletos mientras cargan los productos -->
+                <div class="esqueleto"><div class="bloque media-esq"></div><div class="bloque linea"></div><div class="bloque linea corta"></div></div>
+                <div class="esqueleto"><div class="bloque media-esq"></div><div class="bloque linea"></div><div class="bloque linea corta"></div></div>
+                <div class="esqueleto"><div class="bloque media-esq"></div><div class="bloque linea"></div><div class="bloque linea corta"></div></div>
+                <div class="esqueleto"><div class="bloque media-esq"></div><div class="bloque linea"></div><div class="bloque linea corta"></div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== TESTIMONIOS ===== -->
+    <section class="seccion">
+        <div class="contenedor">
+            <div class="seccion-encabezado">
+                <div>
+                    <span class="etiqueta-seccion" data-i18n="testimonios.etiqueta">Testimonios</span>
+                    <h2 class="titulo-seccion" data-i18n="testimonios.titulo">Lo que dicen nuestros clientes</h2>
+                </div>
+            </div>
+            <div class="grid-testimonios">
+                <article class="testimonio">
+                    <div class="estrellas">★★★★★</div>
+                    <blockquote data-i18n="testimonios.1_texto">"Excelente calidad. El café orgánico es el mejor que he probado y llegó rápido y bien empacado."</blockquote>
+                    <div class="autor"><span class="avatar">M</span><div><strong>María Fernández</strong><span>Bogotá</span></div></div>
+                </article>
+                <article class="testimonio">
+                    <div class="estrellas">★★★★★</div>
+                    <blockquote data-i18n="testimonios.2_texto">"La miel de abeja es pura y deliciosa. He comprado varias veces y siempre cumplen."</blockquote>
+                    <div class="autor"><span class="avatar">C</span><div><strong>Carlos Mendoza</strong><span>Medellín</span></div></div>
+                </article>
+                <article class="testimonio">
+                    <div class="estrellas">★★★★★</div>
+                    <blockquote data-i18n="testimonios.3_texto">"Me encanta la panela artesanal, tiene un sabor único. La atención por el chat fue muy rápida."</blockquote>
+                    <div class="autor"><span class="avatar">L</span><div><strong>Laura Gómez</strong><span>Cali</span></div></div>
+                </article>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ===== DETALLE DE PRODUCTO ===== -->
+<div class="modal-fondo" id="modalProducto" role="dialog" aria-modal="true" aria-labelledby="detalleNombre">
+    <div class="modal">
+        <button class="modal-cerrar" data-cerrar aria-label="Cerrar">✕</button>
+        <div class="detalle-producto" id="detalleProducto"></div>
+    </div>
+</div>
+
+<div id="pie"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/i18next@23.10.0/i18next.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-http-backend@2.4.0/i18nextHttpBackend.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/main.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+    const { esc, pesos, t, imagen } = RA;
+
+    let productos = [];
+    let categoriaActiva = 'todas';
+
+    // ============================================
+    // TARJETA DE PRODUCTO
+    // ============================================
+    function tarjetaProducto(p, indice) {
+        const agotado = p.stock <= 0;
+        return `
+            <article class="tarjeta-producto ${agotado ? 'agotado' : ''}" data-id="${p.id}" style="animation-delay:${Math.min(indice, 8) * 40}ms" tabindex="0">
+                <div class="media">
+                    <img src="${esc(imagen(p.imagen))}" alt="${esc(p.nombre)}" loading="lazy" onerror="RA.imagenRespaldo(this)">
+                    <div class="insignias">
+                        ${p.descuento > 0 ? `<span class="insignia insignia-descuento">-${p.descuento}%</span>` : ''}
+                        ${agotado ? `<span class="insignia insignia-agotado">${t('productos.agotado')}</span>`
+                                  : p.destacado ? `<span class="insignia insignia-destacado">★ ${t('productos.destacado')}</span>` : ''}
+                    </div>
+                </div>
+                <div class="cuerpo">
+                    ${p.categoria_nombre ? `<span class="categoria">${esc(p.categoria_nombre)}</span>` : ''}
+                    <h3>${esc(p.nombre)}</h3>
+                    <p class="descripcion">${esc(p.descripcion || t('productos.descripcion_defecto'))}</p>
+                    <div class="pie-tarjeta">
+                        ${precioHTML(p)}
+                        <button class="btn-agregar" data-agregar="${p.id}" ${agotado ? 'disabled' : ''}
+                                aria-label="${esc(t('productos.agregar'))}" title="${esc(agotado ? t('productos.agotado') : t('productos.agregar'))}">
+                            ${RA.ICONOS.mas}
+                        </button>
+                    </div>
+                </div>
+            </article>`;
+    }
+
+    function precioHTML(p) {
+        return p.descuento > 0
+            ? `<div class="precio oferta"><span class="precio-actual">${pesos(p.precio_final)}</span><span class="precio-anterior">${pesos(p.precio)}</span></div>`
+            : `<div class="precio"><span class="precio-actual">${pesos(p.precio)}</span></div>`;
+    }
+
+    // ============================================
+    // CARGAR Y DIBUJAR
+    // ============================================
+    async function cargarProductos() {
+        const { ok, data } = await RA.api('/api/productos');
+        if (!ok) {
+            document.getElementById('listaProductos').innerHTML = `
+                <div class="vacio"><div class="icono-grande">⚠️</div><h3>${t('productos.error')}</h3><p>${esc(data.error || '')}</p></div>`;
+            return;
+        }
+        productos = data;
+        document.getElementById('datoProductos').textContent = productos.length;
+        dibujarTodo();
+    }
+
+    function dibujarTodo() {
+        dibujarOfertas();
+        dibujarCategorias();
+        dibujarCatalogo();
+    }
+
+    function dibujarOfertas() {
+        const ofertas = productos.filter(p => p.descuento > 0 && p.stock > 0).sort((a, b) => b.descuento - a.descuento);
+        document.getElementById('ofertas').classList.toggle('oculto', ofertas.length === 0);
+        document.querySelectorAll('a[href="#ofertas"]').forEach(el => el.classList.toggle('oculto', ofertas.length === 0));
+        document.getElementById('listaOfertas').innerHTML = ofertas.slice(0, 4).map(tarjetaProducto).join('');
+    }
+
+    function dibujarCategorias() {
+        const conteo = {};
+        productos.forEach(p => {
+            const nombre = p.categoria_nombre || t('catalogo.sin_categoria');
+            conteo[nombre] = (conteo[nombre] || 0) + 1;
+        });
+        const chip = (valor, texto, cuenta) =>
+            `<button class="chip ${categoriaActiva === valor ? 'activo' : ''}" data-categoria="${esc(valor)}">${esc(texto)}<span class="cuenta">${cuenta}</span></button>`;
+
+        document.getElementById('categorias').innerHTML =
+            chip('todas', t('catalogo.todas'), productos.length) +
+            Object.keys(conteo).sort().map(nombre => chip(nombre, nombre, conteo[nombre])).join('');
+    }
+
+    function normalizar(texto) {
+        return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }
+
+    function dibujarCatalogo() {
+        const busqueda = normalizar(document.getElementById('buscador').value.trim());
+        const orden = document.getElementById('orden').value;
+
+        let lista = productos.filter(p => {
+            const categoria = p.categoria_nombre || t('catalogo.sin_categoria');
+            const coincideCategoria = categoriaActiva === 'todas' || categoria === categoriaActiva;
+            const coincideTexto = !busqueda || normalizar(`${p.nombre} ${p.descripcion} ${p.categoria_nombre}`).includes(busqueda);
+            return coincideCategoria && coincideTexto;
+        });
+
+        const ordenes = {
+            destacados: (a, b) => (b.destacado - a.destacado) || ((b.stock > 0) - (a.stock > 0)) || a.nombre.localeCompare(b.nombre),
+            precio_asc: (a, b) => a.precio_final - b.precio_final,
+            precio_desc: (a, b) => b.precio_final - a.precio_final,
+            nombre: (a, b) => a.nombre.localeCompare(b.nombre)
+        };
+        lista.sort(ordenes[orden]);
+
+        const resultado = document.getElementById('resultadoBusqueda');
+        resultado.textContent = busqueda || categoriaActiva !== 'todas'
+            ? t('catalogo.resultados', { count: lista.length })
+            : '';
+
+        document.getElementById('listaProductos').innerHTML = lista.length
+            ? lista.map(tarjetaProducto).join('')
+            : `<div class="vacio">
+                   <div class="icono-grande">🔍</div>
+                   <h3>${t('catalogo.sin_resultados')}</h3>
+                   <p>${t('catalogo.sin_resultados_texto')}</p>
+                   <button class="btn btn-secundario" id="limpiarFiltros">${t('catalogo.limpiar')}</button>
+               </div>`;
+    }
+
+    // ============================================
+    // DETALLE DEL PRODUCTO (ventana modal)
+    // ============================================
+    let cantidadDetalle = 1;
+
+    function abrirDetalle(id) {
+        const p = productos.find(x => x.id === id);
+        if (!p) return;
+        cantidadDetalle = 1;
+        dibujarDetalle(p);
+        document.getElementById('modalProducto').classList.add('abierto');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function dibujarDetalle(p) {
+        const agotado = p.stock <= 0;
+        const estadoStock = agotado
+            ? `<span class="estado-stock agotado">${t('productos.agotado')}</span>`
+            : p.stock <= p.stock_minimo
+                ? `<span class="estado-stock pocas">${t('productos.ultimas', { count: p.stock })}</span>`
+                : `<span class="estado-stock disponible">${t('productos.disponible')}</span>`;
+
+        document.getElementById('detalleProducto').innerHTML = `
+            <div class="media">
+                <img src="${esc(imagen(p.imagen))}" alt="${esc(p.nombre)}" onerror="RA.imagenRespaldo(this)">
+                <div class="insignias">${p.descuento > 0 ? `<span class="insignia insignia-descuento">-${p.descuento}%</span>` : ''}</div>
+            </div>
+            <div class="info">
+                ${p.categoria_nombre ? `<span class="etiqueta-seccion" style="margin:0">${esc(p.categoria_nombre)}</span>` : ''}
+                <h2 id="detalleNombre">${esc(p.nombre)}</h2>
+                ${precioHTML(p)}
+                ${estadoStock}
+                <p class="descripcion">${esc(p.descripcion || t('productos.descripcion_defecto'))}</p>
+                <div class="comprar-fila">
+                    <div class="cantidad">
+                        <button type="button" data-cantidad="-1" ${agotado ? 'disabled' : ''} aria-label="-">−</button>
+                        <span id="cantidadDetalle">${agotado ? 0 : cantidadDetalle}</span>
+                        <button type="button" data-cantidad="1" ${agotado ? 'disabled' : ''} aria-label="+">+</button>
+                    </div>
+                    <button class="btn btn-primario" data-agregar-detalle="${p.id}" ${agotado ? 'disabled' : ''}>
+                        ${RA.ICONOS.carrito.replace('<svg', '<svg width="18" height="18"')} ${t('productos.agregar')}
+                    </button>
+                </div>
+                <p style="font-size:.85rem;color:var(--texto-tenue)">🚚 ${t('productos.nota_envio')}</p>
+            </div>`;
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalProducto').classList.remove('abierto');
+        document.body.style.overflow = '';
+    }
+
+    // ============================================
+    // EVENTOS
+    // ============================================
+    document.addEventListener('click', (e) => {
+        const btnAgregar = e.target.closest('[data-agregar]');
+        if (btnAgregar) {
+            e.stopPropagation();
+            const p = productos.find(x => x.id === parseInt(btnAgregar.dataset.agregar));
+            if (p) RA.carrito.agregar(p, 1);
+            return;
+        }
+
+        const tarjeta = e.target.closest('.tarjeta-producto');
+        if (tarjeta) return abrirDetalle(parseInt(tarjeta.dataset.id));
+
+        const chip = e.target.closest('[data-categoria]');
+        if (chip) {
+            categoriaActiva = chip.dataset.categoria;
+            dibujarCategorias();
+            dibujarCatalogo();
+            return;
+        }
+
+        if (e.target.id === 'limpiarFiltros') {
+            categoriaActiva = 'todas';
+            document.getElementById('buscador').value = '';
+            dibujarCategorias();
+            dibujarCatalogo();
+            return;
+        }
+
+        const btnCantidad = e.target.closest('[data-cantidad]');
+        if (btnCantidad) {
+            const p = productos.find(x => x.id === parseInt(document.querySelector('[data-agregar-detalle]').dataset.agregarDetalle));
+            cantidadDetalle = Math.max(1, Math.min(p.stock, cantidadDetalle + parseInt(btnCantidad.dataset.cantidad)));
+            document.getElementById('cantidadDetalle').textContent = cantidadDetalle;
+            return;
+        }
+
+        const btnDetalle = e.target.closest('[data-agregar-detalle]');
+        if (btnDetalle) {
+            const p = productos.find(x => x.id === parseInt(btnDetalle.dataset.agregarDetalle));
+            if (p && RA.carrito.agregar(p, cantidadDetalle)) cerrarModal();
+            return;
+        }
+
+        if (e.target.closest('[data-cerrar]') || e.target.id === 'modalProducto') cerrarModal();
+    });
+
+    // Abrir el detalle con Enter cuando la tarjeta tiene el foco (accesibilidad con teclado)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') cerrarModal();
+        if (e.key === 'Enter' && e.target.classList.contains('tarjeta-producto')) abrirDetalle(parseInt(e.target.dataset.id));
+    });
+
+    document.getElementById('buscador').addEventListener('input', dibujarCatalogo);
+    document.getElementById('orden').addEventListener('change', dibujarCatalogo);
+
+    RA.alListo(() => productos.length ? dibujarTodo() : cargarProductos());
+</script>
+</body>
+</html>

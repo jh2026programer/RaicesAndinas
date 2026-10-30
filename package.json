@@ -1,0 +1,19 @@
+{
+  "name": "raices-andinas",
+  "version": "2.0.0",
+  "description": "Sistema completo de e-commerce andino con chatbot, pedidos y reportes",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "n8n:flujos": "node automatizaciones/n8n/generar-flujos.js",
+    "n8n:instalar": "node automatizaciones/n8n/instalar-flujos.js",
+    "n8n:centrales": "node automatizaciones/n8n/instalar-centrales.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "express": "^4.22.2",
+    "mysql2": "^3.23.4"
+  }
+}

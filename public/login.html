@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión · Raíces Andinas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body data-pagina="login">
+
+<div id="encabezado"></div>
+
+<main class="auth">
+    <div class="auth-visual">
+        <img src="https://images.unsplash.com/photo-1511537190424-bbbab87ac5eb?w=1200&q=80" alt="" onerror="this.remove()">
+        <h2 data-i18n-html="login.visual_titulo">Bienvenido de vuelta a <em>Raíces Andinas</em></h2>
+        <p data-i18n="login.visual_texto">Tus productos favoritos de los Andes te esperan. Ingresa para comprar y seguir tus pedidos.</p>
+    </div>
+
+    <div class="auth-formulario">
+        <div class="auth-caja">
+            <h1 data-i18n="login.titulo">Iniciar sesión</h1>
+            <p class="subtitulo" data-i18n="login.subtitulo">Ingresa a tu cuenta para comprar y ver tus pedidos.</p>
+
+            <div id="mensaje"></div>
+
+            <form id="formLogin" novalidate>
+                <div class="campo">
+                    <label for="correo" data-i18n="login.correo">Correo electrónico</label>
+                    <input type="email" id="correo" autocomplete="email" placeholder="tu@correo.com" required>
+                </div>
+                <div class="campo">
+                    <label for="password" data-i18n="login.password">Contraseña</label>
+                    <div class="campo-password">
+                        <input type="password" id="password" autocomplete="current-password" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <div class="fila-entre">
+                    <span></span>
+                    <a href="/olvide.html" data-i18n="login.olvide">¿Olvidaste tu contraseña?</a>
+                </div>
+                <button type="submit" class="btn btn-primario btn-lg btn-bloque" id="btnIngresar" data-i18n="login.boton">Ingresar</button>
+            </form>
+
+            <div class="auth-enlaces">
+                <span><span data-i18n="login.no_cuenta">¿No tienes cuenta?</span> <a href="/registro.html" data-i18n="login.registrate">Regístrate gratis</a></span>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/i18next@23.10.0/i18next.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-http-backend@2.4.0/i18nextHttpBackend.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/main.js"></script>
+<script>
+    const { t, esc } = RA;
+    const parametros = new URLSearchParams(location.search);
+    const destino = parametros.get('volver') === 'carrito' ? '/carrito.html' : '/';
+
+    // Si ya hay sesión, no tiene sentido mostrar el login
+    if (RA.sesion()) location.replace(destino === '/' ? '/cuenta.html' : destino);
+
+    function mostrarMensaje(texto, tipo) {
+        document.getElementById('mensaje').innerHTML = `<div class="alerta alerta-${tipo}">${esc(texto)}</div>`;
+    }
+
+    if (parametros.get('restablecida')) {
+        window.i18nListo.then(() => mostrarMensaje(t('login.password_actualizada'), 'exito'));
+    }
+
+    document.getElementById('formLogin').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const correo = document.getElementById('correo').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!correo || !password) return mostrarMensaje(t('login.campos_obligatorios'), 'error');
+
+        const btn = document.getElementById('btnIngresar');
+        btn.disabled = true;
+        btn.textContent = '⏳ ' + t('login.ingresando');
+
+        const { ok, data } = await RA.api('/api/login', { method: 'POST', body: { correo, password } });
+
+        if (ok) {
+            RA.guardarSesion(data.usuario, data.token);
+            mostrarMensaje(t('login.exito', { nombre: data.usuario.nombres }), 'exito');
+            setTimeout(() => location.href = destino, 700);
+        } else {
+            mostrarMensaje(data.error === 'Credenciales incorrectas' ? t('login.error') : (data.error || t('login.error')), 'error');
+            btn.disabled = false;
+            btn.textContent = t('login.boton');
+        }
+    });
+</script>
+</body>
+</html>

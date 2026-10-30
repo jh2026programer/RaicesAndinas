@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi cuenta · Raíces Andinas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body data-pagina="cuenta">
+
+<div id="encabezado"></div>
+
+<main class="contenedor">
+    <div class="encabezado-pagina">
+        <h1 class="titulo-pagina" id="saludo" data-i18n="cuenta.titulo">Mi cuenta</h1>
+        <p data-i18n="cuenta.subtitulo">Consulta tus datos y el estado de tus pedidos.</p>
+    </div>
+
+    <div class="cuenta-grid">
+        <aside class="tarjeta" id="perfil">
+            <div class="vacio"><div class="icono-grande">⏳</div></div>
+        </aside>
+
+        <section class="tarjeta" id="pedidos">
+            <h2 data-i18n="cuenta.mis_pedidos">Mis pedidos</h2>
+            <div id="listaPedidos"><div class="vacio"><div class="icono-grande">⏳</div></div></div>
+        </section>
+    </div>
+</main>
+
+<div id="pie"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/i18next@23.10.0/i18next.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-http-backend@2.4.0/i18nextHttpBackend.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+<script src="js/comun.js"></script>
+<script src="js/main.js"></script>
+<script src="js/chatbot.js"></script>
+<script>
+    const { esc, pesos, t, imagen } = RA;
+    const sesion = RA.sesion();
+    if (!sesion) location.replace('/login.html');
+
+    let perfil = null;
+    let pedidos = null;
+    const PASOS = ['pendiente', 'confirmado', 'enviado', 'entregado'];
+
+    async function cargar() {
+        const [usuario, lista] = await Promise.all([
+            RA.api(`/api/usuario/${sesion.usuario.id}`),
+            RA.api(`/api/pedidos/usuario/${sesion.usuario.id}`)
+        ]);
+        if (usuario.status === 401 || lista.status === 401) return location.replace('/login.html');
+        perfil = usuario.ok ? usuario.data : sesion.usuario;
+        pedidos = lista.ok ? lista.data : [];
+        dibujar();
+    }
+
+    function dibujar() {
+        if (!perfil) return;
+        const dato = (clave, valor) => `<div class="dato"><span>${t(clave)}</span><strong>${esc(valor || t('cuenta.no_registrado'))}</strong></div>`;
+
+        document.getElementById('saludo').textContent = t('cuenta.hola', { nombre: perfil.nombres.split(' ')[0] });
+        document.getElementById('perfil').innerHTML = `
+            <div class="perfil-cabecera">
+                <span class="avatar">${esc(perfil.nombres.charAt(0))}</span>
+                <div>
+                    <h3 style="margin:0">${esc(perfil.nombres)} ${esc(perfil.apellidos)}</h3>
+                    <span style="color:var(--texto-tenue);font-size:.88rem">${esc(perfil.correo)}</span>
+                </div>
+            </div>
+            ${dato('registro.telefono', perfil.telefono)}
+            ${dato('registro.ciudad', perfil.ciudad)}
+            ${dato('registro.direccion', perfil.direccion)}
+            ${dato('registro.documento', perfil.documento)}
+            ${perfil.fecha_registro ? dato('cuenta.cliente_desde', RA.fecha(perfil.fecha_registro)) : ''}
+            <div style="display:grid;gap:10px;margin-top:20px">
+                <a href="/olvide.html" class="btn btn-secundario btn-bloque">🔑 ${t('cuenta.cambiar_password')}</a>
+                <button class="btn btn-peligro btn-bloque" id="btnSalir">🚪 ${t('header.cerrar')}</button>
+            </div>`;
+
+        document.getElementById('btnSalir').addEventListener('click', () => {
+            if (confirm(t('header.cerrar_confirmacion'))) RA.cerrarSesion('/');
+        });
+
+        dibujarPedidos();
+    }
+
+    function lineaTiempo(estado) {
+        if (estado === 'cancelado') return '';
+        const actual = PASOS.indexOf(estado);
+        return `<div class="linea-tiempo">${PASOS.map((paso, i) =>
+            `<div class="paso ${i <= actual ? 'hecho' : ''}">${t('estados.' + paso)}</div>`).join('')}</div>`;
+    }
+
+    function dibujarPedidos() {
+        const contenedor = document.getElementById('listaPedidos');
+        if (!pedidos.length) {
+            contenedor.innerHTML = `
+                <div class="vacio">
+                    <div class="icono-grande">📭</div>
+                    <h3>${t('cuenta.sin_pedidos')}</h3>
+                    <a href="/#catalogo" class="btn btn-primario">${t('carrito.ir_catalogo')}</a>
+                </div>`;
+            return;
+        }
+
+        contenedor.innerHTML = pedidos.map(p => {
+            const envio = parseFloat(p.costo_envio || 0);
+            return `
+            <article class="pedido-tarjeta">
+                <div class="pedido-cabecera">
+                    <div><strong>${t('cuenta.pedido')} #${p.id}</strong> <span class="fecha">· ${RA.fecha(p.fecha)}</span></div>
+                    <span class="estado estado-${p.estado}">${t('estados.' + p.estado)}</span>
+                </div>
+                <div class="pedido-cuerpo">
+                    ${lineaTiempo(p.estado)}
+                    ${p.detalles.map(d => `
+                        <div class="pedido-linea">
+                            <span style="display:flex;gap:10px;align-items:center">
+                                <img src="${esc(imagen(d.imagen))}" alt="" style="width:36px;height:36px;border-radius:8px;object-fit:cover" onerror="RA.imagenRespaldo(this)">
+                                ${d.cantidad} × ${esc(d.nombre)}
+                            </span>
+                            <span>${pesos(d.subtotal)}</span>
+                        </div>`).join('')}
+                    <div class="pedido-linea"><span>${t('carrito.envio')}</span><span>${envio > 0 ? pesos(envio) : `<span class="gratis">${t('carrito.gratis')}</span>`}</span></div>
+                    <div class="pedido-linea total"><span>${t('carrito.total')}</span><span>${pesos(p.total)}</span></div>
+                    <div style="font-size:.85rem;color:var(--texto-tenue);margin-top:8px">📍 ${esc(p.direccion_envio)} · 💳 ${esc(p.metodo_pago || '')}</div>
+                    ${p.enlace_encuesta ? `<a href="${esc(p.enlace_encuesta)}" class="btn btn-dorado btn-sm" style="margin-top:12px">⭐ ${t('cuenta.calificar_compra')}</a>` : ''}
+                    ${p.encuesta_puntuacion ? `<div style="margin-top:10px;color:var(--dorado-oscuro);font-size:.9rem">${'★'.repeat(p.encuesta_puntuacion)} ${t('cuenta.ya_calificaste')}</div>` : ''}
+                </div>
+            </article>`;
+        }).join('');
+
+        if (location.hash === '#pedidos') document.getElementById('pedidos').scrollIntoView();
+    }
+
+    if (sesion) RA.alListo(() => perfil ? dibujar() : cargar());
+</script>
+</body>
+</html>
