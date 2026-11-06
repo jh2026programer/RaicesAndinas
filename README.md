@@ -54,7 +54,7 @@ Cola en la base de datos ─▶   └─▶ Bitácora de cada ejecución (panel 
 
 ## IA (LangChain)
 
-`servicios/ia/` usa Gemini; si falla o se agota la cuota pasa a Groq, luego a Ollama si está configurado, y por último a las reglas de la tienda. Cada intento queda en la auditoría (`ia_auditoria`). El chatbot tiene memoria (la conversación guardada) y herramientas de solo lectura: buscar productos y consultar los pedidos del propio cliente.
+`servicios/ia/` prueba varios modelos de Gemini; si fallan o se agota la cuota pasa a los de Groq, luego a Ollama si está configurado, y por último a las reglas de la tienda. Cada modelo tiene 12 s para responder, el total nunca pasa de 25 s, y un modelo saturado descansa unos segundos para no hacer esperar al siguiente cliente. Cada intento queda en la auditoría (`ia_auditoria`). Los modelos gratuitos cambian con el tiempo: `npm run ia:probar` muestra cuáles responden hoy y `GEMINI_MODELOS` / `GROQ_MODELOS` en el `.env` permiten cambiarlos sin tocar el código. El chatbot tiene memoria (la conversación guardada) y herramientas de solo lectura: buscar productos y consultar los pedidos del propio cliente.
 
 ## Pruebas
 

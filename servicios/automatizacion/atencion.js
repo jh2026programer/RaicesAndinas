@@ -65,8 +65,14 @@ function registrar(motor, { canales, chatbotIA }) {
     motor.registrar({
         id: 'C03.chatbot', central: CENTRAL, flujo: 'Chatbot con IA', reencolar: false,
         async ejecutar(datos, ctx) {
-            const r = await ctx.paso('IA: responder al cliente', () => chatbotIA.responder(datos), { intentos: 1 }).catch(() => null);
-            return r ? { respuesta: r.texto, proveedor: r.proveedor, modelo: r.modelo } : { respuesta: null, proveedor: 'reglas' };
+            const r = await ctx.paso('IA: responder al cliente', async () => {
+                try {
+                    return await chatbotIA.responder(datos);
+                } catch (error) {
+                    return { omitido: true, motivo: error.message.slice(0, 200) };
+                }
+            }, { intentos: 1 });
+            return r && r.texto ? { respuesta: r.texto, proveedor: r.proveedor, modelo: r.modelo } : { respuesta: null, proveedor: 'reglas' };
         }
     });
 

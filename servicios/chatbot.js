@@ -1,7 +1,7 @@
 // servicios/chatbot.js
 // Respuestas del asistente virtual basadas en reglas (menú numérico y palabras clave).
 // Los productos y precios se leen de la base de datos, nunca se escriben a mano.
-// Si el mensaje no coincide con ninguna regla, server.js intenta responder con IA (n8n + Gemini).
+// Si el mensaje no coincide con ninguna regla, server.js intenta responder con IA.
 
 const CONTACTO = {
     correo: 'soporte@raicesandinas.com',
@@ -51,6 +51,7 @@ const TEXTOS = {
         salir: '👋 ¡Gracias por visitar Raíces Andinas! Vuelve pronto 💚\n\nEscribe "hola" si necesitas ayuda de nuevo.',
         gracias: '¡Con mucho gusto! 😊 ¿Te ayudo con algo más? Escribe "menú" para ver las opciones.',
         noEntendi: '🤔 No entendí tu mensaje.',
+        recomendados: '⭐ *Te recomiendo nuestros destacados*',
         volverMenu: 'Escribe "menú" para volver a las opciones.',
         precio: 'Precio',
         antes: 'antes',
@@ -88,6 +89,7 @@ const TEXTOS = {
         salir: '👋 Thanks for visiting Raíces Andinas! Come back soon 💚\n\nType "hello" if you need help again.',
         gracias: 'You are welcome! 😊 Anything else? Type "menu" to see the options.',
         noEntendi: '🤔 I did not understand your message.',
+        recomendados: '⭐ *I recommend our featured products*',
         volverMenu: 'Type "menu" to go back to the options.',
         precio: 'Price',
         antes: 'was',
@@ -101,6 +103,16 @@ const PATRONES = {
     saludo: /^(hola|hello|hi|hey|buenas|buenos dias|buenas tardes|buenas noches|good morning|good afternoon|que tal)\b/,
     gracias: /^(gracias|muchas gracias|thanks|thank you|ok|okay|vale|listo|perfecto|genial|great)\b/,
     salir: /^(salir|chao|adios|bye|goodbye|exit)\b/
+};
+
+// Solo se usan cuando la IA no está disponible (modo permisivo)
+const PATRONES_RESPALDO = {
+    recomendar: /recomiend|recomendar|sugier|sugerenc|desayun|recommend|suggest|breakfast/,
+    envios: /envio|envian|domicilio|entrega|llega|shipping|delivery/,
+    devoluciones: /devol|reembols|garantia|return|refund|warranty/,
+    ofertas: /oferta|descuento|promocion|offer|discount/,
+    comprar: /como compr|como pag|metodo de pago|how to buy|payment/,
+    catalogo: /producto|catalogo|precio|que venden|que tienen|products|prices/
 };
 
 function lineaProducto(p, t) {
@@ -160,6 +172,20 @@ function responderConReglas({ mensaje, idioma, productos, envio, permisivo = fal
         .some(palabra => msg.includes(palabra)));
     // Los mensajes largos se dejan a la IA, salvo en modo permisivo (cuando la IA no está disponible)
     if (producto && (permisivo || msg.split(/\s+/).length <= 4)) return respuesta(detalleProducto(producto, t));
+
+    if (permisivo) {
+        if (PATRONES_RESPALDO.recomendar.test(msg)) {
+            const destacados = productos.filter(p => p.destacado && p.stock > 0);
+            const lista = (destacados.length ? destacados : productos.filter(p => p.stock > 0)).slice(0, 5);
+            if (lista.length) return respuesta(`${t.recomendados}\n\n${lista.map(p => lineaProducto(p, t)).join('\n')}\n\n${t.detalleProducto}`);
+        }
+        const opcion = PATRONES_RESPALDO.envios.test(msg) ? '2'
+            : PATRONES_RESPALDO.devoluciones.test(msg) ? '3'
+            : PATRONES_RESPALDO.ofertas.test(msg) ? '4'
+            : PATRONES_RESPALDO.comprar.test(msg) ? '5'
+            : PATRONES_RESPALDO.catalogo.test(msg) ? '1' : null;
+        if (opcion) return responderConReglas({ mensaje: opcion, idioma, productos, envio });
+    }
 
     return { respuesta: null, entendido: false, solicitaAsesor: false };
 }

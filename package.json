@@ -7,6 +7,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node --test \"test/*.test.js\"",
+    "ia:probar": "node scripts/probar-ia.js",
     "n8n:flujos": "node automatizaciones/n8n/generar-flujos.js",
     "n8n:instalar": "node automatizaciones/n8n/instalar-flujos.js",
     "n8n:centrales": "node automatizaciones/n8n/instalar-centrales.js"

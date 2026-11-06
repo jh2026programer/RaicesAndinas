@@ -1,7 +1,7 @@
 // Pruebas de la capa de IA: plan B entre modelos, herramientas, memoria y auditoría (sin internet)
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { crearIA, proveedoresDesdeEntorno, errorSeguro } = require('../servicios/ia');
+const { crearIA, proveedoresDesdeEntorno, errorSeguro, tipoDeFalla, conLimite } = require('../servicios/ia');
 const { crearChatbotIA, crearHerramientas, buscarEnCatalogo, memoria } = require('../servicios/ia/chatbot');
 
 const silencio = { error() {}, warn() {} };
@@ -83,6 +83,55 @@ test('las preguntas se anonimizan antes de salir hacia el modelo y en la auditor
     assert.doesNotMatch(bd.filas[0].entrada, /ana@gmail|3001234567/);
 });
 
+test('un modelo colgado no bloquea al cliente: se corta y responde el siguiente', async () => {
+    const colgado = { nombre: 'gemini', modelo: 'colgado', crear: () => ({ invoke: () => new Promise(() => {}) }) };
+    const ia = crearIA({ registro: silencio, proveedores: [colgado, modeloFalso('groq', [{ content: 'de groq' }])] });
+    const inicio = Date.now();
+    const r = await ia.generar({ funcion: 'prueba', sistema: 'S', pregunta: 'hola', tiempoPorModelo: 50 });
+    assert.strictEqual(r.proveedor, 'groq');
+    assert.ok(Date.now() - inicio < 1000);
+});
+
+test('el tiempo total se respeta aunque queden modelos por probar', async () => {
+    const colgado = (modelo) => ({ nombre: 'gemini', modelo, crear: () => ({ invoke: () => new Promise(() => {}) }) });
+    const ia = crearIA({ registro: silencio, proveedores: [colgado('a'), colgado('b'), colgado('c')] });
+    const inicio = Date.now();
+    await assert.rejects(ia.generar({ funcion: 'prueba', sistema: 'S', pregunta: 'hola', tiempoPorModelo: 50, tiempoTotal: 80 }), /Ningún modelo/);
+    assert.ok(Date.now() - inicio < 500);
+});
+
+test('un modelo saturado descansa y el siguiente mensaje no lo espera', async () => {
+    const saturado = modeloFalso('gemini', [new Error('[503 Service Unavailable] high demand')]);
+    const ia = crearIA({ registro: silencio, proveedores: [saturado, modeloFalso('groq', [{ content: 'a' }, { content: 'b' }])] });
+    await preguntar(ia);
+    await preguntar(ia);
+    assert.strictEqual(saturado.estado.llamadas.length, 1);
+});
+
+test('dentro de un proveedor, si un modelo falla se prueba otro del mismo', async () => {
+    const a = { ...modeloFalso('gemini', [new Error('[503] high demand')]), modelo: 'a' };
+    const b = { ...modeloFalso('gemini', [{ content: 'de b' }]), modelo: 'b' };
+    const r = await preguntar(crearIA({ registro: silencio, proveedores: [a, b] }));
+    assert.strictEqual(r.modelo, 'b');
+    assert.strictEqual(r.texto, 'de b');
+});
+
+test('clasifica las fallas de los proveedores', () => {
+    assert.strictEqual(tipoDeFalla(new Error('429 quota exceeded')), 'cuota');
+    assert.strictEqual(tipoDeFalla(new Error('[503 Service Unavailable] high demand')), 'saturado');
+    assert.strictEqual(tipoDeFalla(new Error('The model does not exist')), 'inexistente');
+    assert.strictEqual(tipoDeFalla(new Error('otra cosa')), null);
+});
+
+test('conLimite corta y cancela una tarea que no termina', async () => {
+    let cancelada = false;
+    await assert.rejects(conLimite((senal) => {
+        senal.addEventListener('abort', () => { cancelada = true; });
+        return new Promise(() => {});
+    }, 20), (e) => e.tiempoAgotado === true);
+    assert.strictEqual(cancelada, true);
+});
+
 test('un error del proveedor no deja claves en la auditoría', () => {
     assert.doesNotMatch(errorSeguro(new Error('fallo en https://x.com?key=ABC123SECRETO')), /ABC123SECRETO/);
 });
@@ -136,9 +185,11 @@ test('CHATBOT_IA=false apaga la IA del chat sin llamar a ningún modelo', async 
 
 test('sin claves no hay proveedores; con claves aparecen en el orden del plan B', () => {
     assert.deepStrictEqual(proveedoresDesdeEntorno({}), []);
-    const lista = proveedoresDesdeEntorno({ GROQ_API_KEY: 'g', GEMINI_API_KEY: 'x', GEMINI_MODELO: 'models/gemini-3.8-flash', OLLAMA_URL: 'http://localhost:11434' });
-    assert.deepStrictEqual(lista.map(p => p.nombre), ['gemini', 'groq', 'ollama']);
-    assert.strictEqual(lista[0].modelo, 'gemini-3.8-flash');
+    const lista = proveedoresDesdeEntorno({ GROQ_API_KEY: 'g', GEMINI_API_KEY: 'x', GEMINI_MODELOS: 'models/a, b', GROQ_MODELOS: 'c', OLLAMA_URL: 'http://localhost:11434' });
+    assert.deepStrictEqual(lista.map(p => `${p.nombre}/${p.modelo}`), ['gemini/a', 'gemini/b', 'groq/c', 'ollama/llama3.2']);
+    const porDefecto = proveedoresDesdeEntorno({ GEMINI_API_KEY: 'x', GROQ_API_KEY: 'g' });
+    assert.ok(porDefecto.filter(p => p.nombre === 'gemini').length >= 2, 'debe haber varios modelos de respaldo');
+    assert.ok(porDefecto.filter(p => p.nombre === 'groq').length >= 2);
 });
 
 test('los modelos reales de LangChain aceptan las herramientas del chatbot', () => {
