@@ -61,6 +61,6 @@ Muchos servidores gratuitos bloquean el envío por SMTP, y entonces los correos 
 
 ## 6. Cuidados
 
-- La contraseña de pruebas `admin123` está publicada en documentos antiguos del repositorio: el servidor **nunca** debe usarla.
+- La contraseña de pruebas que aparece en documentos antiguos del repositorio es pública: el servidor **nunca** debe usarla.
 - Sin volumen, las fotos de las facturas se pierden en cada publicación.
 - Las tareas programadas usan la hora de Colombia, y el servidor debe quedar encendido para que salgan.
