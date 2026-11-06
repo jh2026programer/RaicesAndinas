@@ -18,6 +18,7 @@ const chatbot = require('./servicios/chatbot');
 const consultas = require('./servicios/consultas');
 const { crearAutomatizacion } = require('./servicios/automatizacion');
 const { registrarRutas } = require('./servicios/automatizacion/rutas');
+const { registrarRutas: registrarRutasFacturas } = require('./servicios/vision/rutas');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -281,11 +282,13 @@ async function aplicarMigraciones() {
     await aplicarMigracionMotor();
 }
 
-// Tablas del motor de automatización (database/migraciones/003_motor_automatizacion.sql)
+// Tablas del motor y del módulo de facturas (database/migraciones/)
 async function aplicarMigracionMotor() {
-    const sql = fs.readFileSync(path.join(__dirname, 'database', 'migraciones', '003_motor_automatizacion.sql'), 'utf8');
-    const sentencias = sql.split('\n').filter(l => !l.trim().startsWith('--')).join('\n').split(';').map(x => x.trim()).filter(Boolean);
-    for (const sentencia of sentencias) await db.query(sentencia);
+    for (const archivo of ['003_motor_automatizacion.sql', '004_facturas.sql']) {
+        const sql = fs.readFileSync(path.join(__dirname, 'database', 'migraciones', archivo), 'utf8');
+        const sentencias = sql.split('\n').filter(l => !l.trim().startsWith('--')).join('\n').split(';').map(x => x.trim()).filter(Boolean);
+        for (const sentencia of sentencias) await db.query(sentencia);
+    }
 }
 
 (async function iniciar() {
@@ -1526,6 +1529,7 @@ app.get('/api/admin/indicadores', requiereAdmin, async (req, res) => {
 
 // Rutas del motor de automatización (aprobación de compras, bitácora, auditoría de IA)
 registrarRutas(app, automatizacion, { db, requiereAdmin });
+registrarRutasFacturas(app, automatizacion.facturas, { db, requiereAdmin });
 
 // Red de seguridad: un error inesperado se anota en la consola, pero el servidor NO se apaga
 process.on('unhandledRejection', (error) => {
@@ -1546,7 +1550,7 @@ app.use('/api', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en ${TIENDA_URL}`);
     console.log(`📊 Panel admin: ${TIENDA_URL}/admin.html`);
-    console.log(MODO_N8N ? `🔔 Automatizaciones en n8n: ${process.env.N8N_WEBHOOK_URL || 'desactivadas'}` : `⚙️ Motor de automatización: activo · IA: ${automatizacion.ia.estado().map(p => p.nombre).join(' → ') || 'solo reglas'}`);
+    console.log(MODO_N8N ? `🔔 Automatizaciones en n8n: ${process.env.N8N_WEBHOOK_URL || 'desactivadas'}` : `⚙️ Motor de automatización: activo · IA: ${[...new Set(automatizacion.ia.estado().map(p => p.nombre))].join(' → ') || 'solo reglas'}`);
     if (!process.env.ADMIN_TOKEN_SECRET) {
         console.warn('⚠️ ADMIN_TOKEN_SECRET no definido: las sesiones se cierran al reiniciar');
     }

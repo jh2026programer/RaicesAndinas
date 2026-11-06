@@ -10,6 +10,7 @@ const inventario = require('./inventario');
 const atencion = require('./atencion');
 const reportes = require('./reportes');
 const monitoreo = require('./monitoreo');
+const facturas = require('../vision/facturas');
 
 function crearAutomatizacion({ db, firmar, entorno = process.env, canales = crearCanales(entorno), ia = crearIA({ db, proveedores: proveedoresDesdeEntorno(entorno) }), registro = console, esperaBase }) {
     const chatbotIA = crearChatbotIA({ ia, db, entorno });
@@ -27,6 +28,7 @@ function crearAutomatizacion({ db, firmar, entorno = process.env, canales = crea
     atencion.registrar(motor, { canales, chatbotIA });
     reportes.registrar(motor, { db, canales, ia, entorno });
     monitoreo.registrar(motor, { canales, entorno });
+    const lectorFacturas = facturas.registrar(motor, { db, ia });
 
     // Ley 1581: los registros técnicos no se guardan más tiempo del necesario
     motor.registrar({
@@ -46,7 +48,11 @@ function crearAutomatizacion({ db, firmar, entorno = process.env, canales = crea
         canales,
         ia,
         compras,
-        iniciar: () => motor.iniciar(),
+        facturas: lectorFacturas,
+        async iniciar() {
+            await motor.iniciar();
+            await lectorFacturas.recuperarAtascadas();
+        },
         emitir: (evento, datos) => motor.emitir(evento, datos),
         // Chatbot en vivo: devuelve la respuesta de la IA o null para que la tienda use sus reglas
         async responderChat(datos) {

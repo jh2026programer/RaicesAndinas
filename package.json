@@ -8,6 +8,8 @@
     "dev": "node server.js",
     "test": "node --test \"test/*.test.js\"",
     "ia:probar": "node scripts/probar-ia.js",
+    "facturas:generar": "node scripts/generar-facturas-prueba.js",
+    "facturas:evaluar": "node scripts/evaluar-facturas.js",
     "n8n:flujos": "node automatizaciones/n8n/generar-flujos.js",
     "n8n:instalar": "node automatizaciones/n8n/instalar-flujos.js",
     "n8n:centrales": "node automatizaciones/n8n/instalar-centrales.js"
@@ -20,9 +22,16 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "express": "^4.22.2",
+    "multer": "^2.5.0",
     "mysql2": "^3.23.4",
     "node-cron": "^4.6.0",
     "nodemailer": "^10.3.1",
+    "pdf-to-png-converter": "^4.3.0",
+    "sharp": "^0.35.5",
+    "tesseract.js": "^7.0.0",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "pdfkit": "^0.20.2"
   }
 }

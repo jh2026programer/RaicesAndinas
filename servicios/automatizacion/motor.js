@@ -116,8 +116,9 @@ function crearMotor({ db, diagnosticar = () => ({}), alFallar = async () => {}, 
         const ctx = {
             // Un paso se reintenta solo. Si ya se completó en un intento anterior, no se repite
             // (así un reintento tardío no vuelve a enviar un correo que ya salió).
-            async paso(nombre, fn, { intentos = REINTENTOS_PASO } = {}) {
-                if (nombre in completados) {
+            reencolados,
+            async paso(nombre, fn, { intentos = REINTENTOS_PASO, repetirSiempre = false } = {}) {
+                if (!repetirSiempre && nombre in completados) {
                     pasos.push({ nombre, estado: 'ya_hecho' });
                     return completados[nombre];
                 }
@@ -127,7 +128,7 @@ function crearMotor({ db, diagnosticar = () => ({}), alFallar = async () => {}, 
                     maxIntentos = Math.max(maxIntentos, usados);
                     const omitido = valor && valor.omitido;
                     pasos.push({ nombre, estado: omitido ? 'omitido' : 'ok', intentos: usados, ms: Date.now() - inicioPaso, ...(omitido ? { motivo: valor.motivo } : {}) });
-                    if (!omitido) completados[nombre] = valor ?? null;
+                    if (!omitido && !repetirSiempre) completados[nombre] = valor ?? null;
                     return valor;
                 } catch (error) {
                     maxIntentos = Math.max(maxIntentos, error.intentos || 1);

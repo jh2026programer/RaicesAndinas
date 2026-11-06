@@ -177,6 +177,7 @@ function crearIA({ db, proveedores = proveedoresDesdeEntorno(), registro = conso
 
     return {
         generar,
+        auditar,
         generarTexto: async (opciones) => (await generar(opciones)).texto,
         estado: () => proveedores.map(p => ({ nombre: p.nombre, modelo: p.modelo, en_espera: Date.now() < (enfriando.get(clave(p)) || 0) }))
     };

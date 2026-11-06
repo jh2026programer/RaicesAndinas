@@ -25,3 +25,6 @@ Guia_*.pdf
 
 # Ayudante local con contrasena escrita en el codigo
 generar_hash.js
+
+# Fotos de las facturas de prueba: se evalúan en local
+pruebas-facturas/fotos/
