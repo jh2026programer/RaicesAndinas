@@ -45,6 +45,7 @@
             <button class="item" data-seccion="pedidos"><span class="icono">🧾</span> Pedidos <span class="globo oculto" id="globoPedidos"></span></button>
             <button class="item" data-seccion="categorias"><span class="icono">🏷️</span> Categorías</button>
             <button class="item" data-seccion="reportes"><span class="icono">📈</span> Reportes</button>
+            <button class="item" data-seccion="automatizaciones"><span class="icono">⚙️</span> Automatizaciones <span class="globo oculto" id="globoCompras"></span></button>
         </nav>
         <div class="inferior">
             <a class="item" href="/" target="_blank"><span class="icono">🛍️</span> Ver tienda</a>
@@ -163,6 +164,35 @@
                     <div id="sugerencias"></div>
                 </div>
             </section>
+
+            <!-- AUTOMATIZACIONES -->
+            <section data-vista="automatizaciones" class="oculto">
+                <div class="kpis" id="kpisMotor"></div>
+                <div class="panel-grid">
+                    <div class="panel">
+                        <div class="panel-titulo"><h2>🔌 Servicios conectados</h2></div>
+                        <div id="estadoCanales"></div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-titulo"><h2>▶️ Ejecutar ahora</h2></div>
+                        <p style="color:var(--texto-suave);margin:0 0 12px;font-size:.9rem">Estos reportes salen solos a su hora; aquí puedes probarlos sin esperar.</p>
+                        <div id="flujosManuales"></div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-titulo"><h2>📦 Compras por aprobar</h2></div>
+                    <div class="tabla-contenedor" id="tablaCompras"></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-titulo"><h2>📜 Bitácora de ejecuciones</h2><button class="btn btn-fantasma btn-sm" id="btnRefrescarBitacora">Actualizar</button></div>
+                    <div class="chips" id="filtroBitacora" style="margin-bottom:16px"></div>
+                    <div class="tabla-contenedor" id="tablaBitacora"></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-titulo"><h2>🤖 Auditoría de la IA</h2></div>
+                    <div class="tabla-contenedor" id="tablaAuditoria"></div>
+                </div>
+            </section>
         </div>
     </div>
 </div>
@@ -232,6 +262,14 @@
     </div>
 </div>
 
+<!-- ===== MODAL: DETALLE DE UNA EJECUCIÓN ===== -->
+<div class="modal-fondo" id="modalEjecucion" role="dialog" aria-modal="true">
+    <div class="modal modal-sm" style="max-width:680px">
+        <button class="modal-cerrar" data-cerrar aria-label="Cerrar">✕</button>
+        <div class="modal-cuerpo" id="detalleEjecucion"></div>
+    </div>
+</div>
+
 <!-- ===== MODAL: DETALLE DE PEDIDO ===== -->
 <div class="modal-fondo" id="modalPedido" role="dialog" aria-modal="true">
     <div class="modal modal-sm" style="max-width:640px">
@@ -246,7 +284,7 @@
     const ESTADOS = ['pendiente', 'confirmado', 'enviado', 'entregado', 'cancelado'];
     const NOMBRES_ESTADO = { pendiente: 'Pendiente', confirmado: 'Confirmado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
     const COLORES_ESTADO = { pendiente: '#b7791f', confirmado: '#2b6cb0', enviado: '#6b46c1', entregado: '#2f855a', cancelado: '#c0392b' };
-    const TITULOS = { resumen: 'Resumen', productos: 'Productos', pedidos: 'Pedidos', categorias: 'Categorías', reportes: 'Reportes' };
+    const TITULOS = { resumen: 'Resumen', productos: 'Productos', pedidos: 'Pedidos', categorias: 'Categorías', reportes: 'Reportes', automatizaciones: 'Automatizaciones' };
 
     const estado = { productos: [], categorias: [], pedidos: [], filtroEstado: 'todos' };
     const fecha = (v) => new Date(v).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -323,7 +361,7 @@
         document.getElementById('lateral').classList.remove('abierto');
         history.replaceState(null, '', '#' + seccion);
 
-        ({ resumen: cargarResumen, productos: cargarProductos, pedidos: cargarPedidos, categorias: cargarCategorias, reportes: cargarReporte })[seccion]();
+        ({ resumen: cargarResumen, productos: cargarProductos, pedidos: cargarPedidos, categorias: cargarCategorias, reportes: cargarReporte, automatizaciones: cargarAutomatizaciones })[seccion]();
     }
 
     // ============================================
@@ -673,6 +711,145 @@
     document.getElementById('mesReporte').addEventListener('change', cargarReporte);
 
     // ============================================
+    // AUTOMATIZACIONES
+    // ============================================
+    const ESTADOS_EJECUCION = {
+        en_curso: { nombre: 'En curso', clase: 'estado-confirmado' },
+        exito: { nombre: 'Éxito', clase: 'estado-entregado' },
+        parcial: { nombre: 'Parcial', clase: 'estado-pendiente' },
+        error: { nombre: 'Error', clase: 'estado-cancelado' }
+    };
+    const ESTADOS_COMPRA = {
+        pendiente: 'estado-pendiente', aprobada: 'estado-entregado', rechazada: 'estado-cancelado', vencida: 'estado-cancelado'
+    };
+    const fechaHora = (v) => new Date(v).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const filaServicio = (nombre, activo, detalle) => `<div class="barra-fila" style="grid-template-columns:1fr auto">
+        <span>${activo ? '🟢' : '⚪'} ${esc(nombre)}${detalle ? `<span class="secundario" style="display:block;font-size:.8rem;color:var(--texto-suave)">${esc(detalle)}</span>` : ''}</span>
+        <span class="num">${activo ? 'Conectado' : 'Sin clave'}</span></div>`;
+
+    async function cargarAutomatizaciones() {
+        const { ok, data: d } = await adminApi('/api/admin/automatizaciones/estado');
+        if (!ok) return;
+        document.getElementById('kpisMotor').innerHTML =
+            kpi('⚙️', '', d.flujos.length, 'Flujos en el motor') +
+            kpi('✅', 'azul', d.ultimas_24h.exito, 'Exitosas (24 h)') +
+            kpi('🟡', 'dorado', d.ultimas_24h.parcial, 'Parciales (24 h)') +
+            kpi('❌', '', d.ultimas_24h.error, 'Con error (24 h)') +
+            kpi('⏳', '', d.tareas_pendientes, 'Tareas en cola');
+
+        document.getElementById('estadoCanales').innerHTML =
+            filaServicio('Gmail', d.canales.gmail) +
+            filaServicio('Telegram', d.canales.telegram) +
+            (d.ia.length
+                ? d.ia.map((p, i) => filaServicio(`IA ${i + 1}: ${p.nombre}`, true, p.en_espera ? `${p.modelo} · en espera por cuota` : p.modelo)).join('')
+                : filaServicio('Inteligencia artificial', false, 'El chatbot responde solo con reglas'));
+
+        document.getElementById('flujosManuales').innerHTML = d.flujos.filter(f => f.cron && f.central.startsWith('C04')).map(f =>
+            `<button class="btn btn-secundario btn-sm" style="margin:0 6px 6px 0" data-ejecutar-flujo="${esc(f.id)}">${esc(f.flujo)}</button>`).join('');
+
+        cargarCompras();
+        cargarBitacora();
+        cargarAuditoria();
+    }
+
+    async function cargarCompras() {
+        const { ok, data } = await adminApi('/api/admin/compras');
+        if (!ok) return;
+        const pendientes = data.filter(c => c.estado === 'pendiente').length;
+        const globo = document.getElementById('globoCompras');
+        globo.textContent = pendientes;
+        globo.classList.toggle('oculto', pendientes === 0);
+        document.getElementById('tablaCompras').innerHTML = data.length
+            ? `<table class="tabla"><thead><tr><th>#</th><th>Productos</th><th class="derecha">Total estimado</th><th>Creada</th><th>Estado</th><th></th></tr></thead><tbody>
+                ${data.slice(0, 10).map(c => `<tr>
+                    <td><strong>#${c.id}</strong></td>
+                    <td>${c.productos.map(p => `${p.cantidad_sugerida} x ${esc(p.nombre)}`).join('<br>')}</td>
+                    <td class="derecha">${pesos(c.total_estimado)}</td>
+                    <td>${fechaHora(c.creado)}</td>
+                    <td><span class="estado ${ESTADOS_COMPRA[c.estado]}" style="text-transform:capitalize">${esc(c.estado)}</span>${c.decidido_por ? `<span class="secundario">${esc(c.decidido_por)}</span>` : ''}</td>
+                    <td>${c.estado === 'pendiente' ? `<div class="acciones-celda">
+                        <button class="btn btn-primario btn-sm" data-decidir-compra="${c.id}" data-decision="aprobar">Aprobar</button>
+                        <button class="btn btn-secundario btn-sm" data-decidir-compra="${c.id}" data-decision="rechazar">Rechazar</button></div>` : ''}</td>
+                </tr>`).join('')}</tbody></table>`
+            : '<p class="vacio">No hay solicitudes de compra.</p>';
+    }
+
+    async function cargarBitacora() {
+        const filtro = estado.filtroBitacora || 'todos';
+        document.getElementById('filtroBitacora').innerHTML = [['todos', 'Todas'], ...Object.entries(ESTADOS_EJECUCION).map(([k, v]) => [k, v.nombre])]
+            .map(([k, n]) => `<button class="chip ${filtro === k ? 'activo' : ''}" data-filtro-bitacora="${k}">${n}</button>`).join('');
+        const { ok, data } = await adminApi(`/api/admin/automatizaciones/ejecuciones?limite=60${filtro === 'todos' ? '' : `&estado=${filtro}`}`);
+        if (!ok) return;
+        estado.ejecuciones = data;
+        document.getElementById('tablaBitacora').innerHTML = data.length
+            ? `<table class="tabla"><thead><tr><th>Fecha</th><th>Flujo</th><th>Disparador</th><th>Estado</th><th class="derecha">Intentos</th><th class="derecha">Duración</th><th></th></tr></thead><tbody>
+                ${data.map(e => `<tr>
+                    <td style="white-space:nowrap">${fechaHora(e.inicio)}</td>
+                    <td><strong>${esc(e.flujo)}</strong><span class="secundario">${esc(e.central)}</span></td>
+                    <td>${esc(e.disparador)}</td>
+                    <td><span class="estado ${ESTADOS_EJECUCION[e.estado].clase}">${ESTADOS_EJECUCION[e.estado].nombre}</span></td>
+                    <td class="derecha">${e.intentos}</td>
+                    <td class="derecha">${e.duracion_ms === null ? '—' : `${e.duracion_ms} ms`}</td>
+                    <td><button class="btn btn-fantasma btn-sm" data-ver-ejecucion="${e.id}">Ver</button></td>
+                </tr>`).join('')}</tbody></table>`
+            : '<p class="vacio">Todavía no hay ejecuciones.</p>';
+    }
+
+    async function cargarAuditoria() {
+        const { ok, data } = await adminApi('/api/admin/ia/auditoria?limite=20');
+        if (!ok) return;
+        document.getElementById('tablaAuditoria').innerHTML = data.length
+            ? `<table class="tabla"><thead><tr><th>Fecha</th><th>Función</th><th>Modelo</th><th>Entrada (anonimizada)</th><th>Resultado</th><th class="derecha">Duración</th></tr></thead><tbody>
+                ${data.map(a => `<tr>
+                    <td style="white-space:nowrap">${fechaHora(a.fecha)}</td>
+                    <td>${esc(a.funcion)}</td>
+                    <td>${esc(a.proveedor)}<span class="secundario">${esc(a.modelo)}</span></td>
+                    <td>${esc(String(a.entrada || '').slice(0, 80))}</td>
+                    <td>${a.exito ? esc(String(a.resultado || '').slice(0, 90)) : `<span style="color:var(--error,#c0392b)">Falló: ${esc(String(a.error || '').slice(0, 90))}</span>`}</td>
+                    <td class="derecha">${a.duracion_ms} ms</td>
+                </tr>`).join('')}</tbody></table>`
+            : '<p class="vacio">La IA todavía no se ha usado.</p>';
+    }
+
+    function verEjecucion(id) {
+        const e = estado.ejecuciones.find(x => x.id === id);
+        if (!e) return;
+        const leer = (texto) => { try { return JSON.parse(texto); } catch { return texto; } };
+        const bloque = (titulo, valor) => `<h3 style="margin:16px 0 6px;font-size:1rem">${titulo}</h3><pre style="background:var(--crema);padding:12px;border-radius:10px;overflow:auto;font-size:.8rem;white-space:pre-wrap;margin:0">${esc(JSON.stringify(leer(valor), null, 2))}</pre>`;
+        const pasos = leer(e.pasos);
+        document.getElementById('detalleEjecucion').innerHTML = `
+            <h2 style="margin:0 0 4px">${esc(e.flujo)}</h2>
+            <p style="color:var(--texto-suave);margin:0">${esc(e.central)} · ${fechaHora(e.inicio)} · ${esc(e.disparador)}</p>
+            ${e.error ? `<div class="alerta alerta-error" style="margin-top:12px"><strong>${esc(e.causa || 'Error')}</strong><br>${esc(e.error)}</div>` : ''}
+            <h3 style="margin:16px 0 6px;font-size:1rem">Pasos</h3>
+            ${Array.isArray(pasos) && pasos.length ? pasos.map(p => `<div class="barra-fila" style="grid-template-columns:24px 1fr auto">
+                <span>${{ ok: '✅', error: '❌', omitido: '⚪', ya_hecho: '↩️' }[p.estado] || '•'}</span>
+                <span>${esc(p.nombre)}${p.motivo ? ` <small>(${esc(p.motivo)})</small>` : ''}${p.error ? ` <small>(${esc(p.error)})</small>` : ''}</span>
+                <span class="num">${p.intentos ? `${p.intentos} int.` : ''}</span></div>`).join('') : '<p class="vacio">Sin pasos registrados.</p>'}
+            ${bloque('Entrada', e.entrada)}
+            ${bloque('Resultado', e.resultado)}`;
+        abrirModal('modalEjecucion');
+    }
+
+    async function ejecutarFlujo(boton) {
+        boton.disabled = true;
+        const { ok, data } = await adminApi('/api/admin/automatizaciones/ejecutar', { method: 'POST', body: { flujo: boton.dataset.ejecutarFlujo } });
+        boton.disabled = false;
+        toast(ok && data.success ? 'Flujo ejecutado. Mira el resultado en la bitácora.' : (data.error || 'El flujo falló'), ok && data.success ? 'exito' : 'error');
+        cargarAutomatizaciones();
+    }
+
+    async function decidirCompra(boton) {
+        const aprobar = boton.dataset.decision === 'aprobar';
+        if (!confirm(aprobar ? '¿Aprobar esta compra? Se sumará el stock y se enviará la orden al proveedor.' : '¿Rechazar esta compra?')) return;
+        const { ok, data } = await adminApi(`/api/admin/compras/${boton.dataset.decidirCompra}/decision`, { method: 'POST', body: { decision: boton.dataset.decision } });
+        toast(ok ? (aprobar ? 'Compra aprobada' : 'Compra rechazada') : data.error, ok ? 'exito' : 'error');
+        setTimeout(cargarAutomatizaciones, 600);
+    }
+
+    document.getElementById('btnRefrescarBitacora').addEventListener('click', cargarAutomatizaciones);
+
+    // ============================================
     // MODALES Y EVENTOS GENERALES
     // ============================================
     function abrirModal(id) {
@@ -691,6 +868,13 @@
         if (el('[data-editar]')) return abrirModalProducto(estado.productos.find(p => p.id === parseInt(el('[data-editar]').dataset.editar)));
         if (el('[data-eliminar]')) return eliminarProducto(parseInt(el('[data-eliminar]').dataset.eliminar));
         if (el('[data-ver-pedido]')) return verPedido(parseInt(el('[data-ver-pedido]').dataset.verPedido));
+        if (el('[data-ver-ejecucion]')) return verEjecucion(parseInt(el('[data-ver-ejecucion]').dataset.verEjecucion));
+        if (el('[data-ejecutar-flujo]')) return ejecutarFlujo(el('[data-ejecutar-flujo]'));
+        if (el('[data-decidir-compra]')) return decidirCompra(el('[data-decidir-compra]'));
+        if (el('[data-filtro-bitacora]')) {
+            estado.filtroBitacora = el('[data-filtro-bitacora]').dataset.filtroBitacora;
+            return cargarBitacora();
+        }
         if (el('[data-filtro]')) {
             estado.filtroEstado = el('[data-filtro]').dataset.filtro;
             return dibujarPedidos();
