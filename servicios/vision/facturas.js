@@ -11,7 +11,7 @@ const { validarFactura, nitValido, normalizar } = require('./validacion');
 
 const CENTRAL = 'C06 Facturas';
 // Fuera de "public": las imágenes solo se entregan por una ruta que exige rol de administrador
-const CARPETA_FACTURAS = path.join(__dirname, '..', '..', 'uploads', 'facturas');
+const CARPETA_FACTURAS = path.join(process.env.UPLOADS_DIR || path.join(__dirname, '..', '..', 'uploads'), 'facturas');
 const MAX_REENCOLADOS = 3;
 const MINUTOS_ATASCADA = 5;
 
@@ -146,7 +146,7 @@ function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARP
             const [r] = await db.query(
                 `INSERT INTO facturas (archivo, nombre_original, tipo_mime, tamano, hash_sha256, origen, subido_por)
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [archivo, String(nombreOriginal || '').slice(0, 200), info.tipo, buffer.length, hash, origen === 'celular' ? 'celular' : 'web', usuarioId]
+                [archivo, String(nombreOriginal || '').slice(0, 200), info.tipo, buffer.length, hash, ['celular', 'chatbot'].includes(origen) ? origen : 'web', usuarioId]
             );
             motor.emitir('factura.subida', { factura_id: r.insertId });
             return { id: r.insertId };
@@ -170,8 +170,26 @@ function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARP
             if (!f) return { error: 'Factura no encontrada', status: 404 };
             if (!['lista', 'por_revisar'].includes(f.estado)) return { error: `Esta factura está en estado "${f.estado}" y no se puede confirmar.`, status: 409 };
 
-            const v = validarFactura(aExtraccion(datos), await catalogo());
+            const productos = await catalogo();
+            const v = validarFactura(aExtraccion(datos), productos);
             const d = v.datos;
+
+            // La decisión del administrador sobre el producto gana sobre el parecido automático
+            const recibidos = Array.isArray(datos.items) ? datos.items : [];
+            for (const [i, item] of d.items.entries()) {
+                const elegido = recibidos[i]?.producto_id;
+                if (elegido === undefined) continue;
+                if (elegido === '' || elegido === null) {
+                    Object.assign(item, { producto_id: null, producto_nombre: null });
+                    continue;
+                }
+                const producto = productos.find(p => p.id === Number(elegido));
+                if (!producto) return { error: `El producto elegido para "${item.descripcion}" no existe.`, status: 422 };
+                Object.assign(item, { producto_id: producto.id, producto_nombre: producto.nombre });
+            }
+            const malaCantidad = d.items.find(i => i.producto_id && !(Number.isInteger(i.cantidad) && i.cantidad > 0));
+            if (malaCantidad) return { error: `La cantidad de "${malaCantidad.descripcion}" debe ser un número entero mayor que cero.`, status: 422 };
+
             const faltan = [['proveedor', 'el proveedor'], ['numero', 'el número'], ['fecha', 'la fecha'], ['total', 'el total']].filter(([c]) => d[c] === null).map(([, n]) => n);
             if (faltan.length) return { error: `Falta ${faltan.join(', ')}.`, status: 422 };
             if (d.items.length === 0) return { error: 'La factura debe tener al menos un producto.', status: 422 };

@@ -17,6 +17,7 @@ function crearCanales(entorno = process.env) {
     let transporte = null;
 
     const remitente = () => entorno.TIENDA_EMAIL_REMITENTE;
+    const hayBrevo = () => Boolean(remitente() && entorno.BREVO_API_KEY);
     const hayGmail = () => Boolean(remitente() && entorno.GMAIL_APP_PASSWORD);
     const hayTelegram = () => Boolean(entorno.TELEGRAM_BOT_TOKEN && entorno.ADMIN_TELEGRAM_CHAT_ID);
 
@@ -32,10 +33,30 @@ function crearCanales(entorno = process.env) {
         return transporte;
     }
 
+    async function correoPorBrevo({ para, asunto, html }) {
+        let res;
+        try {
+            res = await fetch('https://api.brevo.com/v3/smtp/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'api-key': entorno.BREVO_API_KEY },
+                body: JSON.stringify({ sender: { name: 'Raíces Andinas', email: remitente() }, to: [{ email: para }], subject: asunto, htmlContent: html }),
+                signal: AbortSignal.timeout(15000)
+            });
+        } catch (error) {
+            throw new Error(`Brevo no respondió: ${error.name}`);
+        }
+        if (res.ok) return { enviado: true };
+        const detalle = await res.json().catch(() => ({}));
+        const mensaje = `Gmail/Brevo rechazó el envío (${res.status}): ${detalle.message || 'sin detalle'}`;
+        if ([400, 401, 403].includes(res.status)) throw errorPermanente(mensaje);
+        throw new Error(mensaje);
+    }
+
     return {
-        estado: () => ({ gmail: hayGmail(), telegram: hayTelegram() }),
+        estado: () => ({ gmail: hayBrevo() || hayGmail(), correo_por: hayBrevo() ? 'Brevo' : 'Gmail', telegram: hayTelegram() }),
 
         async correo({ para, asunto, html }) {
+            if (hayBrevo()) return correoPorBrevo({ para, asunto, html });
             if (!hayGmail()) return { omitido: true, motivo: 'Falta GMAIL_APP_PASSWORD o TIENDA_EMAIL_REMITENTE' };
             try {
                 const info = await obtenerTransporte().sendMail({

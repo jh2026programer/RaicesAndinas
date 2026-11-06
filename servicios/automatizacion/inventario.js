@@ -174,7 +174,7 @@ function registrar(motor, { db, canales, ia, firmar, entorno = process.env }) {
                 try {
                     await conexion.beginTransaction();
                     const lista = [];
-                    for (const p of s.productos) {
+                    for (const p of s.productos.filter(x => !x.facturado)) {
                         const r = await consultas.reabastecer(conexion, p.id, p.cantidad_sugerida);
                         if (r) lista.push(r);
                     }

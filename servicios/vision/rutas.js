@@ -57,6 +57,22 @@ function registrarRutas(app, facturas, { db, requiereAdmin }) {
         }
     });
 
+    app.get('/api/admin/compras-registradas', requiereSesionAdmin, async (req, res) => {
+        try {
+            const [filas] = await db.query(
+                `SELECT c.id, c.factura_id, c.proveedor, c.numero_factura, c.fecha_factura, c.total, c.registrada_en,
+                        COUNT(d.id) as lineas, COALESCE(SUM(d.cantidad), 0) as unidades
+                 FROM compras c LEFT JOIN compras_detalle d ON d.compra_id = c.id
+                 GROUP BY c.id, c.factura_id, c.proveedor, c.numero_factura, c.fecha_factura, c.total, c.registrada_en
+                 ORDER BY c.id DESC LIMIT 50`
+            );
+            res.json(filas.map(f => ({ ...f, total: parseFloat(f.total), unidades: Number(f.unidades) })));
+        } catch (error) {
+            console.error('Error al listar compras:', error);
+            res.status(500).json({ error: 'Error al consultar las compras' });
+        }
+    });
+
     app.get('/api/admin/facturas/:id', requiereSesionAdmin, async (req, res) => {
         try {
             const [[f]] = await db.query(
@@ -66,8 +82,10 @@ function registrarRutas(app, facturas, { db, requiereAdmin }) {
             if (!f) return res.status(404).json({ error: 'Factura no encontrada' });
             const [productos] = await db.query('SELECT id, nombre FROM productos ORDER BY nombre');
             const { archivo, archivo_anonimizado, hash_sha256, datos_ia, datos_finales, ...publico } = f;
+            const [[compra]] = await db.query('SELECT id, registrada_en FROM compras WHERE factura_id = ?', [f.id]);
             res.json({
                 ...publico,
+                compra: compra || null,
                 tiene_anonimizada: Boolean(archivo_anonimizado),
                 es_pdf: f.tipo_mime === 'application/pdf',
                 lectura: datos_finales ? leerJson(datos_finales) : (datos_ia ? leerJson(datos_ia) : null),
