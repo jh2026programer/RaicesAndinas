@@ -45,6 +45,7 @@
             <button class="item" data-seccion="pedidos"><span class="icono">🧾</span> Pedidos <span class="globo oculto" id="globoPedidos"></span></button>
             <button class="item" data-seccion="categorias"><span class="icono">🏷️</span> Categorías</button>
             <button class="item" data-seccion="reportes"><span class="icono">📈</span> Reportes</button>
+            <button class="item" data-seccion="facturas"><span class="icono">📷</span> Facturas <span class="globo oculto" id="globoFacturas"></span></button>
             <button class="item" data-seccion="automatizaciones"><span class="icono">⚙️</span> Automatizaciones <span class="globo oculto" id="globoCompras"></span></button>
         </nav>
         <div class="inferior">
@@ -165,6 +166,23 @@
                 </div>
             </section>
 
+            <!-- FACTURAS -->
+            <section data-vista="facturas" class="oculto">
+                <div class="panel">
+                    <div class="panel-titulo"><h2>📷 Subir factura de proveedor</h2></div>
+                    <p style="color:var(--texto-suave);margin:0 0 14px;font-size:.92rem">La IA lee la factura y tú la revisas antes de guardarla. Los datos personales se tapan antes de enviar la imagen a la IA. Consejo: buena luz, la hoja completa y sin sombras.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap">
+                        <label class="btn btn-primario" style="cursor:pointer">📷 Tomar foto<input type="file" id="fotoCamara" accept="image/*" capture="environment" hidden></label>
+                        <label class="btn btn-secundario" style="cursor:pointer">📁 Elegir archivos<input type="file" id="fotoArchivo" accept="image/jpeg,image/png,image/webp,application/pdf" multiple hidden></label>
+                    </div>
+                    <p style="color:var(--texto-suave);margin:10px 0 0;font-size:.8rem">JPG, PNG, WEBP o PDF, máximo 10 MB. De un PDF se lee la primera página.</p>
+                </div>
+                <div class="panel">
+                    <div class="panel-titulo"><h2>🧾 Facturas</h2><button class="btn btn-fantasma btn-sm" id="btnRefrescarFacturas">Actualizar</button></div>
+                    <div class="tabla-contenedor" id="tablaFacturas"></div>
+                </div>
+            </section>
+
             <!-- AUTOMATIZACIONES -->
             <section data-vista="automatizaciones" class="oculto">
                 <div class="kpis" id="kpisMotor"></div>
@@ -262,6 +280,14 @@
     </div>
 </div>
 
+<!-- ===== MODAL: REVISAR FACTURA ===== -->
+<div class="modal-fondo" id="modalFactura" role="dialog" aria-modal="true">
+    <div class="modal" style="max-width:1100px">
+        <button class="modal-cerrar" data-cerrar aria-label="Cerrar">✕</button>
+        <div class="modal-cuerpo" id="detalleFactura"></div>
+    </div>
+</div>
+
 <!-- ===== MODAL: DETALLE DE UNA EJECUCIÓN ===== -->
 <div class="modal-fondo" id="modalEjecucion" role="dialog" aria-modal="true">
     <div class="modal modal-sm" style="max-width:680px">
@@ -284,7 +310,7 @@
     const ESTADOS = ['pendiente', 'confirmado', 'enviado', 'entregado', 'cancelado'];
     const NOMBRES_ESTADO = { pendiente: 'Pendiente', confirmado: 'Confirmado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
     const COLORES_ESTADO = { pendiente: '#b7791f', confirmado: '#2b6cb0', enviado: '#6b46c1', entregado: '#2f855a', cancelado: '#c0392b' };
-    const TITULOS = { resumen: 'Resumen', productos: 'Productos', pedidos: 'Pedidos', categorias: 'Categorías', reportes: 'Reportes', automatizaciones: 'Automatizaciones' };
+    const TITULOS = { resumen: 'Resumen', productos: 'Productos', pedidos: 'Pedidos', categorias: 'Categorías', reportes: 'Reportes', facturas: 'Facturas', automatizaciones: 'Automatizaciones' };
 
     const estado = { productos: [], categorias: [], pedidos: [], filtroEstado: 'todos' };
     const fecha = (v) => new Date(v).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -361,7 +387,7 @@
         document.getElementById('lateral').classList.remove('abierto');
         history.replaceState(null, '', '#' + seccion);
 
-        ({ resumen: cargarResumen, productos: cargarProductos, pedidos: cargarPedidos, categorias: cargarCategorias, reportes: cargarReporte, automatizaciones: cargarAutomatizaciones })[seccion]();
+        ({ resumen: cargarResumen, productos: cargarProductos, pedidos: cargarPedidos, categorias: cargarCategorias, reportes: cargarReporte, facturas: cargarFacturas, automatizaciones: cargarAutomatizaciones })[seccion]();
     }
 
     // ============================================
@@ -711,6 +737,189 @@
     document.getElementById('mesReporte').addEventListener('change', cargarReporte);
 
     // ============================================
+    // FACTURAS
+    // ============================================
+    const ESTADOS_FACTURA = {
+        procesando: { nombre: 'Leyendo…', clase: 'estado-confirmado' },
+        reintentando: { nombre: 'Reintentando', clase: 'estado-pendiente' },
+        lista: { nombre: 'Lista', clase: 'estado-entregado' },
+        por_revisar: { nombre: 'Por revisar', clase: 'estado-pendiente' },
+        confirmada: { nombre: 'Confirmada', clase: 'estado-entregado' },
+        rechazada: { nombre: 'Rechazada', clase: 'estado-cancelado' },
+        no_legible: { nombre: 'No legible', clase: 'estado-cancelado' },
+        error: { nombre: 'Error', clase: 'estado-cancelado' }
+    };
+    const colorConfianza = (c) => (c >= 0.85 ? '#2f855a' : c >= 0.6 ? '#b7791f' : '#c0392b');
+    const textoConfianza = (c) => (c === null || c === undefined ? '—' : `${Math.round(c * 100)} %`);
+    let sondeoFacturas = null;
+
+    async function cargarFacturas() {
+        const { ok, data } = await adminApi('/api/admin/facturas');
+        if (!ok) return;
+        const porAtender = data.filter(f => ['lista', 'por_revisar'].includes(f.estado)).length;
+        const globo = document.getElementById('globoFacturas');
+        globo.textContent = porAtender;
+        globo.classList.toggle('oculto', porAtender === 0);
+
+        document.getElementById('tablaFacturas').innerHTML = data.length
+            ? `<table class="tabla"><thead><tr><th>#</th><th>Proveedor</th><th>Número</th><th class="derecha">Total</th><th>Confianza</th><th>Estado</th><th>Subida</th><th></th></tr></thead><tbody>
+                ${data.map(f => `<tr>
+                    <td><strong>#${f.id}</strong></td>
+                    <td>${esc(f.proveedor || '—')}${f.motivo ? `<span class="secundario">${esc(f.motivo)}</span>` : ''}</td>
+                    <td>${esc(f.numero_factura || '—')}</td>
+                    <td class="derecha">${f.total === null ? '—' : pesos(f.total)}</td>
+                    <td style="color:${colorConfianza(f.confianza)};font-weight:600">${textoConfianza(f.confianza === null ? null : parseFloat(f.confianza))}</td>
+                    <td><span class="estado ${ESTADOS_FACTURA[f.estado].clase}">${ESTADOS_FACTURA[f.estado].nombre}</span>${f.corregida ? '<span class="secundario">con correcciones</span>' : ''}</td>
+                    <td style="white-space:nowrap">${fechaHora(f.subido_en)}<span class="secundario">${esc(f.subido_por_nombre || '')} · ${esc(f.origen)}</span></td>
+                    <td><button class="btn btn-fantasma btn-sm" data-ver-factura="${f.id}">${['lista', 'por_revisar'].includes(f.estado) ? 'Revisar' : 'Ver'}</button></td>
+                </tr>`).join('')}</tbody></table>`
+            : '<p class="vacio">Aún no has subido facturas.</p>';
+
+        // Mientras la IA lee, la lista se actualiza sola
+        clearTimeout(sondeoFacturas);
+        if (data.some(f => f.estado === 'procesando') && !document.querySelector('[data-vista="facturas"]').classList.contains('oculto')) {
+            sondeoFacturas = setTimeout(cargarFacturas, 3000);
+        }
+    }
+
+    async function subirFacturas(archivos, origen) {
+        for (const archivo of archivos) {
+            const formulario = new FormData();
+            formulario.append('origen', origen);
+            formulario.append('factura', archivo);
+            try {
+                const res = await fetch('/api/admin/facturas', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }, body: formulario });
+                const data = await res.json().catch(() => ({}));
+                if (res.status === 401) return cerrarSesion();
+                toast(res.ok ? `${archivo.name}: leyendo la factura…` : `${archivo.name}: ${data.error || 'no se pudo subir'}`, res.ok ? 'exito' : 'error');
+            } catch {
+                toast('No hay conexión con el servidor.', 'error');
+            }
+        }
+        cargarFacturas();
+    }
+
+    const campoFactura = (nombre, etiqueta, valor, confianza, { tipo = 'text' } = {}) => `
+        <div class="campo" style="margin-bottom:10px">
+            <label for="ff-${nombre}" style="display:flex;justify-content:space-between;gap:8px"><span>${etiqueta}</span>
+                ${confianza === undefined ? '' : `<small style="color:${colorConfianza(confianza)};font-weight:600">${textoConfianza(confianza)}</small>`}</label>
+            <input id="ff-${nombre}" type="${tipo}" value="${esc(valor ?? '')}" ${tipo === 'number' ? 'min="0" step="1"' : ''}
+                style="${confianza !== undefined && confianza < 0.85 ? 'border-color:#d4a853;background:#fff9e8' : ''}">
+        </div>`;
+
+    const filaItemFactura = (i = {}) => `<tr data-item-factura>
+        <td><input data-c="descripcion" value="${esc(i.descripcion ?? '')}" aria-label="Descripción">
+            ${i.producto_nombre ? `<span class="secundario">→ ${esc(i.producto_nombre)}</span>` : (i.descripcion ? '<span class="secundario" style="color:#b7791f">Sin producto en el catálogo</span>' : '')}</td>
+        <td><input data-c="cantidad" type="number" min="0" value="${i.cantidad ?? ''}" aria-label="Cantidad"></td>
+        <td><input data-c="valor_unitario" type="number" min="0" value="${i.valor_unitario ?? ''}" aria-label="Valor unitario"></td>
+        <td><input data-c="subtotal" type="number" min="0" value="${i.subtotal ?? ''}" aria-label="Subtotal"></td>
+        <td class="col-conf" style="color:${colorConfianza(i.confianza ?? 1)};font-weight:600">${i.confianza === undefined ? '' : textoConfianza(i.confianza)}</td>
+        <td><button type="button" class="btn-icono" data-quitar-item aria-label="Quitar producto">✕</button></td>
+    </tr>`;
+
+    // Imágenes protegidas: se piden con la sesión y se muestran desde memoria
+    async function cargarImagenFactura(id, version, destino) {
+        const res = await fetch(`/api/admin/facturas/${id}/imagen?version=${version}`, { headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` } });
+        const contenedor = document.getElementById(destino);
+        if (!contenedor) return;
+        if (!res.ok) { contenedor.innerHTML = '<p class="vacio">La imagen ya no está disponible.</p>'; return; }
+        const url = URL.createObjectURL(await res.blob());
+        contenedor.innerHTML = res.headers.get('content-type') === 'application/pdf'
+            ? `<iframe src="${url}" title="Factura" style="width:100%;height:520px;border:0"></iframe>`
+            : `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Factura" style="width:100%;border-radius:10px;border:1px solid var(--borde-suave)"></a>`;
+    }
+
+    async function verFactura(id) {
+        const { ok, data: f } = await adminApi(`/api/admin/facturas/${id}`);
+        if (!ok) return toast(f.error || 'No se pudo abrir la factura', 'error');
+        estado.facturaAbierta = f;
+        const l = f.lectura;
+        const editable = ['lista', 'por_revisar'].includes(f.estado);
+        const d = l ? l.datos : {};
+        const c = l ? l.confianza : {};
+
+        document.getElementById('detalleFactura').innerHTML = `
+            <h2 style="margin:0 0 4px">Factura #${f.id} <span class="estado ${ESTADOS_FACTURA[f.estado].clase}" style="vertical-align:middle">${ESTADOS_FACTURA[f.estado].nombre}</span></h2>
+            <p style="color:var(--texto-suave);margin:0 0 14px;font-size:.88rem">Subida por ${esc(f.subido_por_nombre || '—')} el ${fechaHora(f.subido_en)}${f.modelo ? ` · Leída con ${esc(f.modelo)}` : ''}${f.zonas_tapadas !== null ? ` · ${f.zonas_tapadas} datos personales tapados antes de enviarla` : ''}</p>
+            ${f.motivo ? `<div class="alerta alerta-error" style="margin-bottom:12px">${esc(f.motivo)}</div>` : ''}
+            ${l && l.alertas.length && editable ? `<div class="alerta" style="margin-bottom:12px;background:#fff9e8;border:1px solid #e8d49a;color:#7a5a12"><strong>Revisa esto antes de confirmar:</strong><ul style="margin:6px 0 0;padding-left:18px">${l.alertas.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>` : ''}
+            <div class="factura-revision">
+                <div>
+                    <div class="chips" style="margin-bottom:10px">
+                        <button class="chip activo" data-version-factura="original">Original</button>
+                        ${f.tiene_anonimizada ? '<button class="chip" data-version-factura="anonimizada">Lo que vio la IA</button>' : ''}
+                    </div>
+                    <div id="imagenFactura"><p class="vacio">Cargando imagen…</p></div>
+                </div>
+                <form id="formFactura" novalidate>
+                    ${l ? `
+                    <div style="margin-bottom:12px;font-size:.92rem">Confianza general: <strong style="color:${colorConfianza(l.confianza_global)}">${textoConfianza(l.confianza_global)}</strong></div>
+                    <fieldset style="border:0;padding:0;margin:0;min-width:0" ${editable ? '' : 'disabled'}>
+                    ${campoFactura('proveedor', 'Proveedor', d.proveedor, c.proveedor)}
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        ${campoFactura('nit', 'NIT', d.nit, c.nit)}
+                        ${campoFactura('numero', 'Número', d.numero, c.numero)}
+                    </div>
+                    ${campoFactura('fecha', 'Fecha', d.fecha, c.fecha, { tipo: 'date' })}
+                    <h3 style="margin:12px 0 6px;font-size:1rem">Productos</h3>
+                    <div class="tabla-contenedor" style="margin:0"><table class="tabla tabla-factura"><thead><tr><th>Descripción</th><th class="col-cant">Cant.</th><th class="col-valor">V. unitario</th><th class="col-valor">Subtotal</th><th class="col-conf"></th><th class="col-quitar"></th></tr></thead>
+                        <tbody id="itemsFactura">${(d.items || []).map(filaItemFactura).join('')}</tbody></table></div>
+                    ${editable ? '<button type="button" class="btn btn-fantasma btn-sm" id="btnAgregarItem" style="margin:6px 0 12px">+ Agregar producto</button>' : ''}
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                        ${campoFactura('subtotal', 'Subtotal', d.subtotal, c.subtotal, { tipo: 'number' })}
+                        ${campoFactura('iva', 'IVA', d.iva, c.iva, { tipo: 'number' })}
+                        ${campoFactura('total', 'Total', d.total, c.total, { tipo: 'number' })}
+                    </div>
+                    </fieldset>` : '<p class="vacio">No hay datos leídos.</p>'}
+                    <div id="mensajeFactura"></div>
+                    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px">
+                        ${['error', 'reintentando', 'no_legible'].includes(f.estado) ? `<button type="button" class="btn btn-secundario" data-reintentar-factura="${f.id}">Reintentar</button>` : ''}
+                        ${f.estado !== 'confirmada' && f.estado !== 'rechazada' ? `<button type="button" class="btn btn-secundario" data-rechazar-factura="${f.id}">Rechazar</button>` : ''}
+                        ${editable ? '<button type="submit" class="btn btn-primario" id="btnConfirmarFactura">Confirmar y guardar</button>' : ''}
+                    </div>
+                </form>
+            </div>`;
+        abrirModal('modalFactura');
+        cargarImagenFactura(f.id, 'original', 'imagenFactura');
+    }
+
+    function datosDelFormularioFactura() {
+        const valor = (n) => document.getElementById(`ff-${n}`).value.trim();
+        return {
+            proveedor: valor('proveedor'), nit: valor('nit'), numero: valor('numero'), fecha: valor('fecha'),
+            subtotal: valor('subtotal'), iva: valor('iva'), total: valor('total'),
+            items: [...document.querySelectorAll('[data-item-factura]')].map(fila => Object.fromEntries(
+                [...fila.querySelectorAll('[data-c]')].map(i => [i.dataset.c, i.value.trim()])
+            ))
+        };
+    }
+
+    async function confirmarFactura(forzar = false) {
+        const f = estado.facturaAbierta;
+        const boton = document.getElementById('btnConfirmarFactura');
+        boton.disabled = true;
+        const { ok, data } = await adminApi(`/api/admin/facturas/${f.id}/confirmar`, { method: 'POST', body: { datos: datosDelFormularioFactura(), forzar } });
+        boton.disabled = false;
+        if (ok) {
+            toast(data.corregida ? 'Factura guardada con tus correcciones' : 'Factura guardada', 'exito');
+            cerrarModales();
+            return cargarFacturas();
+        }
+        document.getElementById('mensajeFactura').innerHTML = `<div class="alerta alerta-error" style="margin-top:10px">${esc(data.error)}</div>`;
+        if (data.confirmable && confirm(`${data.error}\n\n¿Guardarla de todos modos? Quedará registrado que la confirmaste así.`)) confirmarFactura(true);
+    }
+
+    document.getElementById('fotoCamara').addEventListener('change', (e) => { subirFacturas([...e.target.files], 'celular'); e.target.value = ''; });
+    document.getElementById('fotoArchivo').addEventListener('change', (e) => { subirFacturas([...e.target.files], 'web'); e.target.value = ''; });
+    document.getElementById('btnRefrescarFacturas').addEventListener('click', cargarFacturas);
+    document.addEventListener('submit', (e) => {
+        if (e.target.id === 'formFactura') {
+            e.preventDefault();
+            confirmarFactura();
+        }
+    });
+
+    // ============================================
     // AUTOMATIZACIONES
     // ============================================
     const ESTADOS_EJECUCION = {
@@ -868,6 +1077,29 @@
         if (el('[data-editar]')) return abrirModalProducto(estado.productos.find(p => p.id === parseInt(el('[data-editar]').dataset.editar)));
         if (el('[data-eliminar]')) return eliminarProducto(parseInt(el('[data-eliminar]').dataset.eliminar));
         if (el('[data-ver-pedido]')) return verPedido(parseInt(el('[data-ver-pedido]').dataset.verPedido));
+        if (el('[data-ver-factura]')) return verFactura(parseInt(el('[data-ver-factura]').dataset.verFactura));
+        if (el('[data-version-factura]')) {
+            const boton = el('[data-version-factura]');
+            document.querySelectorAll('[data-version-factura]').forEach(b => b.classList.toggle('activo', b === boton));
+            return cargarImagenFactura(estado.facturaAbierta.id, boton.dataset.versionFactura, 'imagenFactura');
+        }
+        if (el('[data-quitar-item]')) return el('[data-quitar-item]').closest('tr').remove();
+        if (el('#btnAgregarItem')) return document.getElementById('itemsFactura').insertAdjacentHTML('beforeend', filaItemFactura());
+        if (el('[data-reintentar-factura]')) {
+            return adminApi(`/api/admin/facturas/${el('[data-reintentar-factura]').dataset.reintentarFactura}/reintentar`, { method: 'POST' }).then(({ ok, data }) => {
+                toast(ok ? 'Leyendo otra vez…' : data.error, ok ? 'exito' : 'error');
+                cerrarModales();
+                cargarFacturas();
+            });
+        }
+        if (el('[data-rechazar-factura]')) {
+            if (!confirm('¿Rechazar esta factura? Se borrará su imagen y no se guardarán sus datos.')) return;
+            return adminApi(`/api/admin/facturas/${el('[data-rechazar-factura]').dataset.rechazarFactura}/rechazar`, { method: 'POST', body: {} }).then(({ ok, data }) => {
+                toast(ok ? 'Factura rechazada' : data.error, ok ? 'exito' : 'error');
+                cerrarModales();
+                cargarFacturas();
+            });
+        }
         if (el('[data-ver-ejecucion]')) return verEjecucion(parseInt(el('[data-ver-ejecucion]').dataset.verEjecucion));
         if (el('[data-ejecutar-flujo]')) return ejecutarFlujo(el('[data-ejecutar-flujo]'));
         if (el('[data-decidir-compra]')) return decidirCompra(el('[data-decidir-compra]'));

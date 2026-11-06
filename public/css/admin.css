@@ -175,3 +175,17 @@ select.estado-cancelado { background-color: var(--rojo-50); color: var(--rojo); 
     .form-producto { grid-template-columns: 1fr; }
     .barra-fila { grid-template-columns: 90px 1fr 44px; }
 }
+
+/* Revisión de facturas */
+.factura-revision { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; align-items: start; }
+.factura-revision > * { min-width: 0; }
+.tabla-factura { min-width: 520px; }
+.tabla-factura td, .tabla-factura th { padding: 6px 4px; }
+.tabla-factura input { width: 100%; min-width: 0; padding: 7px 8px; font-size: 0.86rem; border: 1px solid var(--borde-suave); border-radius: 8px; background: #fff; color: inherit; font-family: inherit; }
+.tabla-factura input:focus { outline: 2px solid var(--dorado); outline-offset: 1px; }
+.tabla-factura input[type="number"] { text-align: right; }
+.tabla-factura input:disabled { background: transparent; border-color: transparent; }
+.tabla-factura .col-cant { width: 70px; }
+.tabla-factura .col-valor { width: 104px; }
+.tabla-factura .col-conf { width: 44px; font-size: 0.78rem; }
+.tabla-factura .col-quitar { width: 30px; }
