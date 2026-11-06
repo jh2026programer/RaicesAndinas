@@ -7,6 +7,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node --test \"test/*.test.js\"",
+    "bd:preparar": "node scripts/preparar-bd.js",
     "ia:probar": "node scripts/probar-ia.js",
     "facturas:generar": "node scripts/generar-facturas-prueba.js",
     "facturas:evaluar": "node scripts/evaluar-facturas.js",
@@ -22,6 +23,8 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "express": "^4.22.2",
+    "express-rate-limit": "^8.7.3",
+    "helmet": "^8.3.0",
     "multer": "^2.5.0",
     "mysql2": "^3.23.4",
     "node-cron": "^4.6.0",
@@ -33,5 +36,8 @@
   },
   "devDependencies": {
     "pdfkit": "^0.20.2"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

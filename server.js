@@ -9,6 +9,8 @@ try {
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const { rateLimit } = require('express-rate-limit');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -37,6 +39,11 @@ const ENCUESTA_ESPERA_MINUTOS = parseInt(process.env.ENCUESTA_ESPERA_MINUTOS) ||
 // AUTENTICACIÓN (clientes y administradores)
 // ============================================
 // Token firmado (HMAC): "<datos en base64>.<firma>". No requiere guardar sesiones en BD.
+// En producción es obligatorio: de esta firma dependen las sesiones y los enlaces de los correos
+if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_TOKEN_SECRET) {
+    console.error('❌ Falta ADMIN_TOKEN_SECRET: la tienda no puede arrancar en producción sin esa clave.');
+    process.exit(1);
+}
 const TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || crypto.randomBytes(32).toString('hex');
 const TOKEN_HORAS = { admin: 8, cliente: 24 * 7 };
 
@@ -244,19 +251,42 @@ function validarProducto(body) {
 // ============================================
 // MIDDLEWARE E INICIO
 // ============================================
-app.use(cors());
+// El servidor de la nube está detrás de un proxy: así se conoce la IP real para los límites
+app.set('trust proxy', 1);
+// La tienda usa scripts en línea e imágenes de cualquier URL: por eso no se activa CSP
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+// La tienda se sirve a sí misma; otros sitios solo pueden llamar a la API si se autorizan aquí
+app.use(cors({ origin: process.env.CORS_ORIGENES ? process.env.CORS_ORIGENES.split(',').map(o => o.trim()) : false }));
+
+// Límites por IP: contra adivinar contraseñas y contra agotar la cuota gratuita de la IA
+const limite = (minutos, max, error) => rateLimit({ windowMs: minutos * 60 * 1000, limit: max, standardHeaders: true, legacyHeaders: false, message: { error } });
+app.use('/api/login', limite(15, 20, 'Demasiados intentos. Espera unos minutos.'));
+app.use('/api/admin/login', limite(15, 10, 'Demasiados intentos. Espera unos minutos.'));
+app.use('/api/password/olvido', limite(15, 5, 'Demasiadas solicitudes. Espera unos minutos.'));
+app.use('/api/registro', limite(60, 20, 'Demasiados registros desde esta conexión. Intenta más tarde.'));
+app.use('/api/chat/mensaje', limite(1, 20, 'Vas muy rápido. Espera un momento y vuelve a escribir.'));
+
 app.use(express.json());
 app.use(express.static('public'));
 
 let bdConectada = false;
 
+// "ADD COLUMN IF NOT EXISTS" solo existe en MariaDB (XAMPP); así funciona también en MySQL 8
+async function agregarColumna(tabla, columna, definicion) {
+    const [existe] = await db.query(
+        'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+        [tabla, columna]
+    );
+    if (existe.length === 0) await db.query(`ALTER TABLE ${tabla} ADD COLUMN ${columna} ${definicion}`);
+}
+
 // Migraciones: ajustes de la base de datos que se aplican solos al iniciar
 // (ver database/migraciones/). "IF NOT EXISTS" hace que sea seguro ejecutarlas siempre.
 async function aplicarMigraciones() {
-    await db.query('ALTER TABLE chats ADD COLUMN IF NOT EXISTS solicitud_asesor TINYINT(1) NOT NULL DEFAULT 0');
-    await db.query('ALTER TABLE productos ADD COLUMN IF NOT EXISTS descuento TINYINT UNSIGNED NOT NULL DEFAULT 0');
+    await agregarColumna('chats', 'solicitud_asesor', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await agregarColumna('productos', 'descuento', 'TINYINT UNSIGNED NOT NULL DEFAULT 0');
     await db.query('ALTER TABLE productos MODIFY imagen VARCHAR(1000) NULL');
-    await db.query('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS costo_envio DECIMAL(10,2) NOT NULL DEFAULT 0');
+    await agregarColumna('pedidos', 'costo_envio', 'DECIMAL(10,2) NOT NULL DEFAULT 0');
     await db.query(
         `CREATE TABLE IF NOT EXISTS password_resets (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -284,7 +314,7 @@ async function aplicarMigraciones() {
 
 // Tablas del motor y del módulo de facturas (database/migraciones/)
 async function aplicarMigracionMotor() {
-    for (const archivo of ['003_motor_automatizacion.sql', '004_facturas.sql']) {
+    for (const archivo of ['003_motor_automatizacion.sql', '004_facturas.sql', '005_compras.sql']) {
         const sql = fs.readFileSync(path.join(__dirname, 'database', 'migraciones', archivo), 'utf8');
         const sentencias = sql.split('\n').filter(l => !l.trim().startsWith('--')).join('\n').split(';').map(x => x.trim()).filter(Boolean);
         for (const sentencia of sentencias) await db.query(sentencia);
@@ -305,6 +335,11 @@ async function aplicarMigracionMotor() {
         console.log('❌ Error: No se pudo conectar a MySQL. Asegúrate de que XAMPP esté corriendo.');
     }
 })();
+
+// Para que el servidor en la nube sepa si la tienda está viva
+app.get('/api/salud', (req, res) => {
+    res.status(bdConectada ? 200 : 503).json({ estado: bdConectada ? 'ok' : 'sin base de datos' });
+});
 
 // Todas las rutas /api necesitan la base de datos
 app.use('/api', (req, res, next) => {

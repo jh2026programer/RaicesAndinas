@@ -1,15 +1,26 @@
 // db.js - Configuración de la base de datos
 const mysql = require('mysql2');
 
-const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'raices_andinas',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
+// DB_* es lo normal; MYSQL* son los nombres que usan algunos servidores en la nube
+function configuracionBD(entorno = process.env) {
+    return {
+        host: entorno.DB_HOST || entorno.MYSQLHOST || 'localhost',
+        port: parseInt(entorno.DB_PORT || entorno.MYSQLPORT) || 3306,
+        user: entorno.DB_USER || entorno.MYSQLUSER || 'root',
+        password: entorno.DB_PASSWORD || entorno.MYSQLPASSWORD || '',
+        database: entorno.DB_NAME || entorno.MYSQLDATABASE || 'raices_andinas',
+        timezone: '-05:00',
+        ...(entorno.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: entorno.DB_SSL_ESTRICTO === 'true' } } : {}),
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    };
+}
+
+const pool = mysql.createPool(configuracionBD());
+
+// Hora de Colombia en NOW() y CURDATE(), aunque el servidor esté en otro país
+pool.on('connection', (conexion) => conexion.query("SET time_zone = '-05:00'"));
 
 const db = pool.promise();
 
@@ -25,4 +36,4 @@ async function probarConexion() {
     }
 }
 
-module.exports = { db, probarConexion };
+module.exports = { db, probarConexion, configuracionBD };
