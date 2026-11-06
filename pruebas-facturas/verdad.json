@@ -1,0 +1,756 @@
+{
+  "F01": {
+    "proveedor": "Distribuidora Agroandina S.A.S.",
+    "nit": "900.456.123-1",
+    "numero": "A-3274",
+    "fecha": "2026-10-26",
+    "subtotal": 832800,
+    "iva": 158232,
+    "total": 991032,
+    "items": [
+      {
+        "descripcion": "Té de Hierbas",
+        "cantidad": 18,
+        "valor_unitario": 9600,
+        "subtotal": 172800
+      },
+      {
+        "descripcion": "Miel de Abeja",
+        "cantidad": 22,
+        "valor_unitario": 24000,
+        "subtotal": 528000
+      },
+      {
+        "descripcion": "Sal de Maras",
+        "cantidad": 10,
+        "valor_unitario": 13200,
+        "subtotal": 132000
+      }
+    ],
+    "datos_personales": [
+      "(607) 645 8821",
+      "ventas@agroandina-ficticia.test",
+      "Carrera 45 # 12-30, Bucaramanga",
+      "Marta Lucía Rueda"
+    ]
+  },
+  "F02": {
+    "proveedor": "Cooperativa Café del Páramo",
+    "nit": "804.012.377-1",
+    "numero": "FV-4122",
+    "fecha": "2026-08-05",
+    "subtotal": 1360800,
+    "iva": 0,
+    "total": 1360800,
+    "items": [
+      {
+        "descripcion": "Aceite de Oliva",
+        "cantidad": 16,
+        "valor_unitario": 25200,
+        "subtotal": 403200
+      },
+      {
+        "descripcion": "Café Orgánico",
+        "cantidad": 8,
+        "valor_unitario": 27000,
+        "subtotal": 216000
+      },
+      {
+        "descripcion": "Aguardiente Andino",
+        "cantidad": 12,
+        "valor_unitario": 35400,
+        "subtotal": 424800
+      },
+      {
+        "descripcion": "Sal de Maras",
+        "cantidad": 24,
+        "valor_unitario": 13200,
+        "subtotal": 316800
+      }
+    ],
+    "datos_personales": [
+      "(607) 727 1140",
+      "contacto@cafeparamo-ficticia.test",
+      "Calle 8 # 3-15, Socorro"
+    ]
+  },
+  "F03": {
+    "proveedor": "Productos del Altiplano Ltda.",
+    "nit": "860.533.291-4",
+    "numero": "SETT-1302",
+    "fecha": "2026-08-04",
+    "subtotal": 1189800,
+    "iva": 226062,
+    "total": 1415862,
+    "items": [
+      {
+        "descripcion": "Mermelada de Mora",
+        "cantidad": 19,
+        "valor_unitario": 10800,
+        "subtotal": 205200
+      },
+      {
+        "descripcion": "Miel de Abeja",
+        "cantidad": 15,
+        "valor_unitario": 24000,
+        "subtotal": 360000
+      },
+      {
+        "descripcion": "Café Orgánico",
+        "cantidad": 13,
+        "valor_unitario": 27000,
+        "subtotal": 351000
+      },
+      {
+        "descripcion": "Chocolate Artesanal",
+        "cantidad": 12,
+        "valor_unitario": 22800,
+        "subtotal": 273600
+      }
+    ],
+    "datos_personales": [
+      "(601) 742 9033",
+      "pedidos@altiplano-ficticia.test",
+      "Avenida 19 # 110-40, Bogotá",
+      "Diana Patricia Ortiz"
+    ]
+  },
+  "F04": {
+    "proveedor": "Distribuidora Agroandina S.A.S.",
+    "nit": "900.456.123-1",
+    "numero": "FV-3038",
+    "fecha": "2026-09-02",
+    "subtotal": 1415400,
+    "iva": 268926,
+    "total": 1684326,
+    "items": [
+      {
+        "descripcion": "Aceite de Oliva",
+        "cantidad": 11,
+        "valor_unitario": 25200,
+        "subtotal": 277200
+      },
+      {
+        "descripcion": "Mermelada de Mora",
+        "cantidad": 13,
+        "valor_unitario": 10800,
+        "subtotal": 140400
+      },
+      {
+        "descripcion": "Panela Artesanal",
+        "cantidad": 11,
+        "valor_unitario": 9000,
+        "subtotal": 99000
+      },
+      {
+        "descripcion": "Cañihua",
+        "cantidad": 21,
+        "valor_unitario": 39600,
+        "subtotal": 831600
+      },
+      {
+        "descripcion": "Quinua Real",
+        "cantidad": 4,
+        "valor_unitario": 16800,
+        "subtotal": 67200
+      }
+    ],
+    "datos_personales": [
+      "(607) 645 8821",
+      "ventas@agroandina-ficticia.test",
+      "Carrera 45 # 12-30, Bucaramanga"
+    ]
+  },
+  "F05": {
+    "proveedor": "Rosalba Mantilla Pico",
+    "nit": null,
+    "numero": "FE-2272",
+    "fecha": "2026-09-19",
+    "subtotal": 678600,
+    "iva": 0,
+    "total": 678600,
+    "items": [
+      {
+        "descripcion": "Café Orgánico",
+        "cantidad": 9,
+        "valor_unitario": 27000,
+        "subtotal": 243000
+      },
+      {
+        "descripcion": "Cañihua",
+        "cantidad": 11,
+        "valor_unitario": 39600,
+        "subtotal": 435600
+      }
+    ],
+    "datos_personales": [
+      "314 882 0467",
+      "rosalba.mantilla@ficticio.test",
+      "Vereda La Esperanza, Málaga",
+      "63.482.915",
+      "Carlos Andrés Suárez"
+    ]
+  },
+  "F06": {
+    "proveedor": "Productos del Altiplano Ltda.",
+    "nit": "860.533.291-4",
+    "numero": "FE-1062",
+    "fecha": "2026-09-01",
+    "subtotal": 640200,
+    "iva": 121638,
+    "total": 761838,
+    "items": [
+      {
+        "descripcion": "Chocolate Artesanal",
+        "cantidad": 4,
+        "valor_unitario": 22800,
+        "subtotal": 91200
+      },
+      {
+        "descripcion": "Panela Artesanal",
+        "cantidad": 5,
+        "valor_unitario": 9000,
+        "subtotal": 45000
+      },
+      {
+        "descripcion": "Miel de Abeja",
+        "cantidad": 21,
+        "valor_unitario": 24000,
+        "subtotal": 504000
+      }
+    ],
+    "datos_personales": [
+      "(601) 742 9033",
+      "pedidos@altiplano-ficticia.test",
+      "Avenida 19 # 110-40, Bogotá"
+    ]
+  },
+  "F07": {
+    "proveedor": "Distribuidora Agroandina S.A.S.",
+    "nit": "900.456.123-1",
+    "numero": "SETT-7270",
+    "fecha": "2026-08-23",
+    "subtotal": 331200,
+    "iva": 62928,
+    "total": 394128,
+    "items": [
+      {
+        "descripcion": "Bolsas kraft de empaque",
+        "cantidad": 100,
+        "valor_unitario": 1200,
+        "subtotal": 120000
+      },
+      {
+        "descripcion": "Sal de Maras",
+        "cantidad": 16,
+        "valor_unitario": 13200,
+        "subtotal": 211200
+      }
+    ],
+    "datos_personales": [
+      "(607) 645 8821",
+      "ventas@agroandina-ficticia.test",
+      "Carrera 45 # 12-30, Bucaramanga",
+      "Marta Lucía Rueda"
+    ]
+  },
+  "F08": {
+    "proveedor": "Cooperativa Café del Páramo",
+    "nit": "804.012.377-1",
+    "numero": "A-2618",
+    "fecha": "2026-10-16",
+    "subtotal": 382800,
+    "iva": 0,
+    "total": 382800,
+    "items": [
+      {
+        "descripcion": "Té de Hierbas",
+        "cantidad": 23,
+        "valor_unitario": 9600,
+        "subtotal": 220800
+      },
+      {
+        "descripcion": "Café Orgánico",
+        "cantidad": 6,
+        "valor_unitario": 27000,
+        "subtotal": 162000
+      }
+    ],
+    "datos_personales": [
+      "(607) 727 1140",
+      "contacto@cafeparamo-ficticia.test",
+      "Calle 8 # 3-15, Socorro"
+    ]
+  },
+  "F09": {
+    "proveedor": "Productos del Altiplano Ltda.",
+    "nit": "860.533.291-4",
+    "numero": "FV-3016",
+    "fecha": "2026-09-07",
+    "subtotal": 1572600,
+    "iva": 298794,
+    "total": 1871394,
+    "items": [
+      {
+        "descripcion": "Aguardiente Andino",
+        "cantidad": 9,
+        "valor_unitario": 35400,
+        "subtotal": 318600
+      },
+      {
+        "descripcion": "Cañihua",
+        "cantidad": 17,
+        "valor_unitario": 39600,
+        "subtotal": 673200
+      },
+      {
+        "descripcion": "Miel de Abeja",
+        "cantidad": 17,
+        "valor_unitario": 24000,
+        "subtotal": 408000
+      },
+      {
+        "descripcion": "Mermelada de Mora",
+        "cantidad": 16,
+        "valor_unitario": 10800,
+        "subtotal": 172800
+      }
+    ],
+    "datos_personales": [
+      "(601) 742 9033",
+      "pedidos@altiplano-ficticia.test",
+      "Avenida 19 # 110-40, Bogotá",
+      "Diana Patricia Ortiz"
+    ]
+  },
+  "F10": {
+    "proveedor": "Hernán Cáceres Duarte",
+    "nit": null,
+    "numero": "SETT-7212",
+    "fecha": "2026-10-19",
+    "subtotal": 1837800,
+    "iva": 0,
+    "total": 1837800,
+    "items": [
+      {
+        "descripcion": "Cañihua",
+        "cantidad": 22,
+        "valor_unitario": 39600,
+        "subtotal": 871200
+      },
+      {
+        "descripcion": "Aguardiente Andino",
+        "cantidad": 24,
+        "valor_unitario": 35400,
+        "subtotal": 849600
+      },
+      {
+        "descripcion": "Panela Artesanal",
+        "cantidad": 13,
+        "valor_unitario": 9000,
+        "subtotal": 117000
+      }
+    ],
+    "datos_personales": [
+      "317 540 2298",
+      "hernancaceres@ficticio.test",
+      "Calle 12 # 5-22, San Gil",
+      "91.237.604"
+    ]
+  },
+  "F11": {
+    "proveedor": "Cooperativa Café del Páramo",
+    "nit": "804.012.377-1",
+    "numero": "FV-5349",
+    "fecha": "2026-10-21",
+    "subtotal": 751200,
+    "iva": 0,
+    "total": 751200,
+    "items": [
+      {
+        "descripcion": "Mermelada de Mora",
+        "cantidad": 21,
+        "valor_unitario": 10800,
+        "subtotal": 226800
+      },
+      {
+        "descripcion": "Miel de Abeja",
+        "cantidad": 4,
+        "valor_unitario": 24000,
+        "subtotal": 96000
+      },
+      {
+        "descripcion": "Aceite de Oliva",
+        "cantidad": 17,
+        "valor_unitario": 25200,
+        "subtotal": 428400
+      }
+    ],
+    "datos_personales": [
+      "(607) 727 1140",
+      "contacto@cafeparamo-ficticia.test",
+      "Calle 8 # 3-15, Socorro",
+      "Carlos Andrés Suárez"
+    ]
+  },
+  "F12": {
+    "proveedor": "Productos del Altiplano Ltda.",
+    "nit": "860.533.291-4",
+    "numero": "FV-1765",
+    "fecha": "2026-10-27",
+    "subtotal": 971400,
+    "iva": 184566,
+    "total": 1155966,
+    "items": [
+      {
+        "descripcion": "Panela Artesanal",
+        "cantidad": 4,
+        "valor_unitario": 9000,
+        "subtotal": 36000
+      },
+      {
+        "descripcion": "Aguardiente Andino",
+        "cantidad": 21,
+        "valor_unitario": 35400,
+        "subtotal": 743400
+      },
+      {
+        "descripcion": "Té de Hierbas",
+        "cantidad": 20,
+        "valor_unitario": 9600,
+        "subtotal": 192000
+      }
+    ],
+    "datos_personales": [
+      "(601) 742 9033",
+      "pedidos@altiplano-ficticia.test",
+      "Avenida 19 # 110-40, Bogotá"
+    ]
+  },
+  "F13": {
+    "proveedor": "Distribuidora Agroandina S.A.S.",
+    "nit": "900.456.123-1",
+    "numero": "A-9355",
+    "fecha": "2026-09-18",
+    "subtotal": 1331400,
+    "iva": 252966,
+    "total": 1584366,
+    "items": [
+      {
+        "descripcion": "Miel de Abeja",
+        "cantidad": 16,
+        "valor_unitario": 24000,
+        "subtotal": 384000
+      },
+      {
+        "descripcion": "Aceite de Oliva",
+        "cantidad": 4,
+        "valor_unitario": 25200,
+        "subtotal": 100800
+      },
+      {
+        "descripcion": "Quinua Real",
+        "cantidad": 22,
+        "valor_unitario": 16800,
+        "subtotal": 369600
+      },
+      {
+        "descripcion": "Café Orgánico",
+        "cantidad": 3,
+        "valor_unitario": 27000,
+        "subtotal": 81000
+      },
+      {
+        "descripcion": "Cañihua",
+        "cantidad": 10,
+        "valor_unitario": 39600,
+        "subtotal": 396000
+      }
+    ],
+    "datos_personales": [
+      "(607) 645 8821",
+      "ventas@agroandina-ficticia.test",
+      "Carrera 45 # 12-30, Bucaramanga",
+      "Marta Lucía Rueda"
+    ]
+  },
+  "F14": {
+    "proveedor": "Cooperativa Café del Páramo",
+    "nit": "804.012.377-1",
+    "numero": "FV-4532",
+    "fecha": "2026-08-02",
+    "subtotal": 637800,
+    "iva": 0,
+    "total": 637800,
+    "items": [
+      {
+        "descripcion": "Etiquetas adhesivas",
+        "cantidad": 250,
+        "valor_unitario": 300,
+        "subtotal": 75000
+      },
+      {
+        "descripcion": "Panela Artesanal",
+        "cantidad": 7,
+        "valor_unitario": 9000,
+        "subtotal": 63000
+      },
+      {
+        "descripcion": "Quinua Real",
+        "cantidad": 11,
+        "valor_unitario": 16800,
+        "subtotal": 184800
+      },
+      {
+        "descripcion": "Té de Hierbas",
+        "cantidad": 7,
+        "valor_unitario": 9600,
+        "subtotal": 67200
+      },
+      {
+        "descripcion": "Aguardiente Andino",
+        "cantidad": 7,
+        "valor_unitario": 35400,
+        "subtotal": 247800
+      }
+    ],
+    "datos_personales": [
+      "(607) 727 1140",
+      "contacto@cafeparamo-ficticia.test",
+      "Calle 8 # 3-15, Socorro"
+    ]
+  },
+  "F15": {
+    "proveedor": "Rosalba Mantilla Pico",
+    "nit": null,
+    "numero": "A-6514",
+    "fecha": "2026-10-18",
+    "subtotal": 979200,
+    "iva": 0,
+    "total": 979200,
+    "items": [
+      {
+        "descripcion": "Café Orgánico",
+        "cantidad": 23,
+        "valor_unitario": 27000,
+        "subtotal": 621000
+      },
+      {
+        "descripcion": "Panela Artesanal",
+        "cantidad": 21,
+        "valor_unitario": 9000,
+        "subtotal": 189000
+      },
+      {
+        "descripcion": "Aceite de Oliva",
+        "cantidad": 5,
+        "valor_unitario": 25200,
+        "subtotal": 126000
+      },
+      {
+        "descripcion": "Mermelada de Mora",
+        "cantidad": 4,
+        "valor_unitario": 10800,
+        "subtotal": 43200
+      }
+    ],
+    "datos_personales": [
+      "314 882 0467",
+      "rosalba.mantilla@ficticio.test",
+      "Vereda La Esperanza, Málaga",
+      "63.482.915",
+      "Diana Patricia Ortiz"
+    ]
+  },
+  "F16": {
+    "proveedor": "Distribuidora Agroandina S.A.S.",
+    "nit": "900.456.123-1",
+    "numero": "FV-6595",
+    "fecha": "2026-09-26",
+    "subtotal": 2085600,
+    "iva": 396264,
+    "total": 2481864,
+    "items": [
+      {
+        "descripcion": "Aguardiente Andino",
+        "cantidad": 24,
+        "valor_unitario": 35400,
+        "subtotal": 849600
+      },
+      {
+        "descripcion": "Cañihua",
+        "cantidad": 19,
+        "valor_unitario": 39600,
+        "subtotal": 752400
+      },
+      {
+        "descripcion": "Té de Hierbas",
+        "cantidad": 15,
+        "valor_unitario": 9600,
+        "subtotal": 144000
+      },
+      {
+        "descripcion": "Sal de Maras",
+        "cantidad": 5,
+        "valor_unitario": 13200,
+        "subtotal": 66000
+      },
+      {
+        "descripcion": "Chocolate Artesanal",
+        "cantidad": 12,
+        "valor_unitario": 22800,
+        "subtotal": 273600
+      }
+    ],
+    "datos_personales": [
+      "(607) 645 8821",
+      "ventas@agroandina-ficticia.test",
+      "Carrera 45 # 12-30, Bucaramanga"
+    ]
+  },
+  "F17": {
+    "proveedor": "Cooperativa Café del Páramo",
+    "nit": "804.012.377-1",
+    "numero": "FV-3736",
+    "fecha": "2026-09-12",
+    "subtotal": 785400,
+    "iva": 0,
+    "total": 785400,
+    "items": [
+      {
+        "descripcion": "Aguardiente Andino",
+        "cantidad": 11,
+        "valor_unitario": 35400,
+        "subtotal": 389400
+      },
+      {
+        "descripcion": "Cañihua",
+        "cantidad": 10,
+        "valor_unitario": 39600,
+        "subtotal": 396000
+      }
+    ],
+    "datos_personales": [
+      "(607) 727 1140",
+      "contacto@cafeparamo-ficticia.test",
+      "Calle 8 # 3-15, Socorro",
+      "Carlos Andrés Suárez"
+    ]
+  },
+  "F18": {
+    "proveedor": "Productos del Altiplano Ltda.",
+    "nit": "860.533.291-4",
+    "numero": "A-8616",
+    "fecha": "2026-10-10",
+    "subtotal": 802200,
+    "iva": 152418,
+    "total": 954618,
+    "items": [
+      {
+        "descripcion": "Mermelada de Mora",
+        "cantidad": 17,
+        "valor_unitario": 10800,
+        "subtotal": 183600
+      },
+      {
+        "descripcion": "Té de Hierbas",
+        "cantidad": 11,
+        "valor_unitario": 9600,
+        "subtotal": 105600
+      },
+      {
+        "descripcion": "Café Orgánico",
+        "cantidad": 19,
+        "valor_unitario": 27000,
+        "subtotal": 513000
+      }
+    ],
+    "datos_personales": [
+      "(601) 742 9033",
+      "pedidos@altiplano-ficticia.test",
+      "Avenida 19 # 110-40, Bogotá"
+    ]
+  },
+  "F19": {
+    "proveedor": "Distribuidora Agroandina S.A.S.",
+    "nit": "900.456.123-1",
+    "numero": "FE-8787",
+    "fecha": "2026-09-07",
+    "subtotal": 1433400,
+    "iva": 272346,
+    "total": 1705746,
+    "items": [
+      {
+        "descripcion": "Té de Hierbas",
+        "cantidad": 11,
+        "valor_unitario": 9600,
+        "subtotal": 105600
+      },
+      {
+        "descripcion": "Aguardiente Andino",
+        "cantidad": 20,
+        "valor_unitario": 35400,
+        "subtotal": 708000
+      },
+      {
+        "descripcion": "Miel de Abeja",
+        "cantidad": 12,
+        "valor_unitario": 24000,
+        "subtotal": 288000
+      },
+      {
+        "descripcion": "Sal de Maras",
+        "cantidad": 19,
+        "valor_unitario": 13200,
+        "subtotal": 250800
+      },
+      {
+        "descripcion": "Panela Artesanal",
+        "cantidad": 9,
+        "valor_unitario": 9000,
+        "subtotal": 81000
+      }
+    ],
+    "datos_personales": [
+      "(607) 645 8821",
+      "ventas@agroandina-ficticia.test",
+      "Carrera 45 # 12-30, Bucaramanga",
+      "Marta Lucía Rueda"
+    ]
+  },
+  "F20": {
+    "proveedor": "Hernán Cáceres Duarte",
+    "nit": null,
+    "numero": "SETT-8935",
+    "fecha": "2026-08-27",
+    "subtotal": 1212000,
+    "iva": 0,
+    "total": 1212000,
+    "items": [
+      {
+        "descripcion": "Mermelada de Mora",
+        "cantidad": 21,
+        "valor_unitario": 10800,
+        "subtotal": 226800
+      },
+      {
+        "descripcion": "Té de Hierbas",
+        "cantidad": 16,
+        "valor_unitario": 9600,
+        "subtotal": 153600
+      },
+      {
+        "descripcion": "Cañihua",
+        "cantidad": 21,
+        "valor_unitario": 39600,
+        "subtotal": 831600
+      }
+    ],
+    "datos_personales": [
+      "317 540 2298",
+      "hernancaceres@ficticio.test",
+      "Calle 12 # 5-22, San Gil",
+      "91.237.604"
+    ]
+  }
+}

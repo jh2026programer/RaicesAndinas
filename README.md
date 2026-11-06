@@ -56,6 +56,35 @@ Cola en la base de datos ─▶   └─▶ Bitácora de cada ejecución (panel 
 
 `servicios/ia/` prueba varios modelos de Gemini; si fallan o se agota la cuota pasa a los de Groq, luego a Ollama si está configurado, y por último a las reglas de la tienda. Cada modelo tiene 12 s para responder, el total nunca pasa de 25 s, y un modelo saturado descansa unos segundos para no hacer esperar al siguiente cliente. Cada intento queda en la auditoría (`ia_auditoria`). Los modelos gratuitos cambian con el tiempo: `npm run ia:probar` muestra cuáles responden hoy y `GEMINI_MODELOS` / `GROQ_MODELOS` en el `.env` permiten cambiarlos sin tocar el código. El chatbot tiene memoria (la conversación guardada) y herramientas de solo lectura: buscar productos y consultar los pedidos del propio cliente.
 
+## Módulo de visión: facturas de proveedor
+
+En el panel admin, **Facturas** permite tomar una foto con el celular o subir JPG, PNG, WEBP o PDF.
+
+```
+Foto ─▶ OCR local (Tesseract) tapa datos personales ─▶ Gemini Vision devuelve JSON con confianza
+     ─▶ Reglas: cuentas, NIT, fecha y catálogo ─▶ Revisión de una persona ─▶ Confirmada
+```
+
+- **Quién decide:** la IA propone y una persona confirma. Las reglas no confían en la IA: si las cuentas no dan, si el NIT no valida o si un dato tiene confianza menor a 85 %, la factura queda "Por revisar" con los campos dudosos resaltados.
+- **Datos personales:** cédulas, teléfonos, correos, direcciones y nombres de empleados se tapan antes de salir del servidor; la pestaña "Lo que vio la IA" lo muestra. Si la foto es tan mala que el OCR no puede leerla, no se envía a nadie.
+- **Limitación conocida:** el nombre del proveedor y su NIT sí se envían porque son el dato que el proceso necesita, incluso si el proveedor es una persona natural. Para no enviar nada a internet se puede configurar visión local con `OLLAMA_VISION_MODELO`.
+- **Almacenamiento:** las imágenes quedan en `uploads/facturas/`, fuera de la carpeta pública, y solo se entregan con sesión de administrador. Se registra quién subió cada una y cuándo. Rechazar una factura borra su imagen.
+- **Plan B:** varios modelos de visión → Ollama local (opcional) → texto del OCR con un modelo de lenguaje (confianza limitada a 70 %, siempre con revisión) → reintento automático desde la cola.
+
+### Medir la precisión
+
+```bash
+npm run facturas:generar
+```
+
+Imprime `pruebas-facturas/facturas-para-imprimir.pdf`, fotografía cada hoja y guarda las fotos en `pruebas-facturas/fotos/` como `F01.jpg`, `F02.jpg`, etc. Luego:
+
+```bash
+npm run facturas:evaluar
+```
+
+El resultado queda en `pruebas-facturas/resultados.md`.
+
 ## Pruebas
 
 ```bash
