@@ -11,11 +11,11 @@ async function leerFactura({ archivo, tipo, catalogo, extractor, auditar, usuari
 
     const anon = await alPaso('OCR local y anonimización', () => anonimizarImagen(jpeg));
     if (!anon.legible) {
-        return { estado: 'no_legible', motivo: 'La imagen está muy borrosa, oscura o lejos. Vuelve a tomar la foto con buena luz y la factura completa.', anon };
+        return { estado: 'no_legible', motivo: 'No se pudo leer con seguridad, así que no se envió a la IA para proteger los datos personales. Vuelve a tomar la foto con buena luz, sin reflejos y con la factura completa.', anon };
     }
 
     const lectura = await alPaso('IA: extraer datos', () => extractor.extraer({
-        imagen: anon.imagen, textoOCR: anon.texto, auditar, usuarioId, entrada
+        imagen: anon.imagen, textoOCR: anon.texto, confianzaOCR: anon.confianza_ocr, auditar, usuarioId, entrada
     }));
     if (!lectura.extraccion.es_factura) {
         return { estado: 'no_legible', motivo: 'La imagen no parece una factura.', anon, lectura };

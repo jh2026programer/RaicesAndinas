@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const sharp = require('sharp');
 const { validarFactura, digitoVerificacion, nitValido, buscarProducto, fechaValida, UMBRAL_CONFIANZA } = require('../servicios/vision/validacion');
-const { detectarDatosPersonales } = require('../servicios/vision/anonimizar');
+const { detectarDatosPersonales, confianzaDeLectura } = require('../servicios/vision/anonimizar');
 const { interpretarRespuesta, crearExtractor } = require('../servicios/vision/extractor');
 const { identificarArchivo } = require('../servicios/vision/imagen');
 const facturas = require('../servicios/vision/facturas');
@@ -146,10 +146,63 @@ test('anonimizar: conserva lo que el proceso necesita', () => {
     assert.match(texto, /\$1\.234\.567/);
 });
 
+test('anonimizar: reconoce la C.C. con cualquier puntuación', () => {
+    for (const etiqueta of ['C.C.', 'CC', 'C.C', 'c.c:', 'CC.']) {
+        assert.ok(!anonimizar(`${etiqueta} 63.482.915`).texto.includes('63.482'), `no tapó con ${etiqueta}`);
+    }
+});
+
 test('anonimizar: una cédula a mitad de línea también se tapa', () => {
     const { texto } = anonimizar('Hernán Cáceres C.C. 91.237.604');
     assert.ok(!texto.includes('91.237.604'));
     assert.match(texto, /Hernán Cáceres/);
+});
+
+test('anonimizar: tolera errores del OCR en las etiquetas y basura al inicio de la línea', () => {
+    const { texto } = anonimizar(
+        'pirección: Carrera 45 # 12-30',
+        'o ! Dirección: Avenida 19 # 110-40',
+        'Vendedo: Marta Rueda',
+        'Teléfono: 742 9033',
+        'como rosalba.mantillaóficticio.test'
+    );
+    for (const dato of ['Carrera', 'Avenida', 'Marta', '9033', 'mantilla']) assert.ok(!texto.includes(dato), `quedó visible: ${dato}`);
+});
+
+test('anonimizar: reconoce un teléfono sin etiqueta, pero no confunde valores ni facturas', () => {
+    assert.match(anonimizar('sucursal 742 9033 6').texto, /\[oculto\]/);
+    assert.match(anonimizar('Rosalba Mantilla', '63.482.915').texto, /\[oculto\]/);
+    // Debajo del encabezado de la tabla están los precios: nunca se tapan por su forma
+    const tabla = anonimizar('Descripción Cant. V. unitario Subtotal', '1360 800 00', 'Aceite 12 25.200 302.400');
+    assert.deepStrictEqual(tabla.zonas, []);
+    assert.deepStrictEqual(anonimizar('Café Orgánico 18 $10.800 $183.600').zonas, []);
+    assert.deepStrictEqual(anonimizar('Panela 4 $9.000 $36.000').zonas, []);
+    assert.deepStrictEqual(anonimizar('Factura No. 1234567 Fecha 2026-09-02').zonas, []);
+    assert.deepStrictEqual(anonimizar('Total 1234567').zonas, []);
+});
+
+test('anonimizar: una fila de la tabla leída fuera de orden sigue sin taparse', () => {
+    const fila = (texto, y) => ({ texto, palabras: texto.split(' ').map((t, i) => ({ texto: t, caja: { x0: i * 100, y0: y, x1: i * 100 + 90, y1: y + 20 } })) });
+    const { zonas } = detectarDatosPersonales([fila('21 39600 831600', 500), fila('Descripción Cant. Subtotal', 400), fila('Rosalba 63.482.915', 100)]);
+    assert.deepStrictEqual(zonas.map(z => z.tipo), ['telefono']);
+    assert.strictEqual(zonas[0].caja.y0, 100);
+});
+
+test('anonimizar: palabras parecidas a una etiqueta pero distintas no tapan nada', () => {
+    assert.deepStrictEqual(anonimizar('Descripción Cant. V. unitario Subtotal').zonas, []);
+    assert.deepStrictEqual(anonimizar('Comprador: Raíces Andinas S.A.S.').zonas, []);
+    assert.deepStrictEqual(anonimizar('Quinua Real 3 5 15').zonas, []);
+});
+
+test('anonimizar: el NIT nunca se tapa aunque el OCR lo lea mal', () => {
+    assert.deepStrictEqual(anonimizar('NlT 900456123 1').zonas, []);
+    assert.deepStrictEqual(anonimizar('MT 900.456.123-1').zonas, []);
+    assert.deepStrictEqual(anonimizar('804.012 377-1').zonas, []);
+});
+
+test('la seguridad del OCR se calcula con las palabras leídas', () => {
+    assert.strictEqual(confianzaDeLectura([{ palabras: [{ confianza: 90 }, { confianza: 50 }] }]), 70);
+    assert.strictEqual(confianzaDeLectura([]), 0);
 });
 
 // ---------- Interpretar la respuesta del modelo ----------
@@ -176,9 +229,30 @@ test('una confianza fuera de rango no rompe la lectura', () => {
 const respuesta = JSON.stringify({ es_factura: true, proveedor: { valor: 'X', confianza: 0.9 } });
 const modelo = (nombre, modo, comportamiento) => ({ nombre, modelo: nombre, modo, crear: () => ({ invoke: comportamiento }) });
 
+test('si la visión está saturada, espera e insiste antes de usar el texto del OCR', async () => {
+    let intentos = 0;
+    const extractor = crearExtractor({ registro: { warn() {} }, esperaSegundaPasada: 1, modelos: [
+        modelo('gemini', 'imagen', async () => { if (++intentos === 1) throw new Error('503 high demand'); return { content: respuesta }; }),
+        modelo('groq', 'texto', async () => { throw new Error('no debía llegar aquí'); })
+    ] });
+    const r = await extractor.extraer({ imagen: Buffer.from('x'), textoOCR: 't' });
+    assert.strictEqual(r.modo, 'imagen');
+    assert.strictEqual(intentos, 2);
+});
+
+test('un OCR poco seguro no se usa para leer la factura: se deja para reintentar', async () => {
+    let llamadas = 0;
+    const extractor = crearExtractor({ registro: { warn() {} }, esperaSegundaPasada: 1, modelos: [
+        modelo('gemini', 'imagen', async () => { throw new Error('caído'); }),
+        modelo('groq', 'texto', async () => { llamadas++; return { content: respuesta }; })
+    ] });
+    await assert.rejects(extractor.extraer({ imagen: Buffer.from('x'), textoOCR: 'basura', confianzaOCR: 40 }), (e) => e.sinModelos === true);
+    assert.strictEqual(llamadas, 0);
+});
+
 test('plan B: si fallan los modelos de visión, usa el texto del OCR con confianza limitada', async () => {
     const textosEnviados = [];
-    const extractor = crearExtractor({ registro: { warn() {} }, modelos: [
+    const extractor = crearExtractor({ registro: { warn() {} }, esperaSegundaPasada: 1, modelos: [
         modelo('gemini', 'imagen', async () => { throw new Error('503 high demand'); }),
         modelo('groq', 'texto', async (m) => { textosEnviados.push(m[1].content); return { content: respuesta }; })
     ] });
@@ -201,7 +275,7 @@ test('un modelo colgado se corta y cada intento queda auditado', async () => {
 });
 
 test('sin ningún modelo disponible lanza un error para reintentar luego', async () => {
-    const extractor = crearExtractor({ registro: { warn() {} }, modelos: [modelo('gemini', 'imagen', async () => { throw new Error('caído'); })] });
+    const extractor = crearExtractor({ registro: { warn() {} }, esperaSegundaPasada: 1, modelos: [modelo('gemini', 'imagen', async () => { throw new Error('caído'); })] });
     await assert.rejects(extractor.extraer({ imagen: Buffer.from('x'), textoOCR: 't' }), (e) => e.sinModelos === true);
 });
 

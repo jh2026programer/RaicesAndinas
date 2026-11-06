@@ -6,10 +6,14 @@ const { z } = require('zod');
 const { HumanMessage, SystemMessage } = require('@langchain/core/messages');
 const { proveedoresDesdeEntorno, errorSeguro, conLimite, tipoDeFalla } = require('../ia');
 
-const MODELOS_VISION = 'gemini-3.5-flash,gemini-3.6-flash,gemini-3.5-flash-lite';
+const MODELOS_VISION = 'gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-flash-lite-latest,gemini-3.5-flash,gemini-3.6-flash';
 const TIEMPO_POR_MODELO_MS = 45000;
 // Lo leído solo con OCR es menos fiable: esa lectura siempre pasa por revisión humana
 const CONFIANZA_MAXIMA_OCR = 0.7;
+// Con menos de esta seguridad, el texto del OCR no sirve para leer una factura: es mejor reintentar la visión luego
+const MIN_CONFIANZA_TEXTO = 85;
+// Leer la imagen es mucho más preciso: si los modelos están saturados, se espera y se insiste una vez
+const ESPERA_SEGUNDA_PASADA_MS = 20000;
 
 const ENFRIAMIENTO_MS = { cuota: 60 * 1000, saturado: 30 * 1000, inexistente: 60 * 60 * 1000 };
 
@@ -101,17 +105,31 @@ function modelosVision(entorno = process.env) {
     return lista;
 }
 
-function crearExtractor({ modelos = modelosVision(), registro = console, tiempoPorModelo = TIEMPO_POR_MODELO_MS } = {}) {
+function crearExtractor({ modelos = modelosVision(), registro = console, tiempoPorModelo = TIEMPO_POR_MODELO_MS, esperaSegundaPasada = ESPERA_SEGUNDA_PASADA_MS } = {}) {
     const enfriando = new Map();
     const clave = (p) => `${p.nombre}/${p.modelo}`;
 
     // Devuelve { extraccion, proveedor, modelo, modo, confianza_maxima }. auditar(fila) registra cada intento.
-    async function extraer({ imagen, textoOCR, auditar = async () => {}, usuarioId = null, entrada = '' }) {
+    async function extraer({ imagen, textoOCR, confianzaOCR = 100, auditar = async () => {}, usuarioId = null, entrada = '' }) {
         const errores = [];
-        for (const p of modelos) {
+        const hayVision = imagen && modelos.some(p => p.modo === 'imagen');
+        const textoFiable = textoOCR && confianzaOCR >= MIN_CONFIANZA_TEXTO;
+        // Primero visión; si nadie responde, se espera y se insiste; el texto del OCR va de último
+        const turnos = [
+            ...modelos.filter(p => p.modo === 'imagen'),
+            ...(hayVision ? [{ esperar: true }, ...modelos.filter(p => p.modo === 'imagen')] : []),
+            ...modelos.filter(p => p.modo === 'texto')
+        ];
+
+        for (const p of turnos) {
+            if (p.esperar) {
+                await new Promise(r => setTimeout(r, esperaSegundaPasada));
+                enfriando.clear();
+                continue;
+            }
             if (Date.now() < (enfriando.get(clave(p)) || 0)) continue;
             if (p.modo === 'imagen' && !imagen) continue;
-            if (p.modo === 'texto' && !textoOCR) continue;
+            if (p.modo === 'texto' && !textoFiable) continue;
 
             const mensajes = [new SystemMessage(INSTRUCCIONES), new HumanMessage(p.modo === 'imagen'
                 ? { content: [{ type: 'text', text: 'Lee esta factura y devuelve el JSON.' }, { type: 'image_url', image_url: `data:image/jpeg;base64,${imagen.toString('base64')}` }] }

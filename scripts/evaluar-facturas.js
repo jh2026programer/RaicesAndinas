@@ -2,8 +2,10 @@
 // Mide la precisión del módulo de visión con fotos reales y reporta el % de aciertos por campo.
 // 1) Imprime pruebas-facturas/facturas-para-imprimir.pdf y fotografía cada hoja con el celular.
 // 2) Guarda las fotos en pruebas-facturas/fotos/ con el código de la hoja: F01.jpg, F02.jpg, ...
+//    También sirve el número de la hoja: 1.jpeg, 2.jpeg, ...
 // 3) npm run facturas:evaluar           →  pruebas-facturas/resultados.md
-//    (se puede indicar otra carpeta: node scripts/evaluar-facturas.js <carpeta> <archivo-salida.md>)
+//    (se puede indicar otra carpeta y una nota sobre cómo se tomaron las imágenes:
+//     node scripts/evaluar-facturas.js <carpeta> <archivo-salida.md> "<nota>")
 
 process.loadEnvFile();
 
@@ -12,13 +14,20 @@ const path = require('path');
 const { identificarArchivo } = require('../servicios/vision/imagen');
 const { crearExtractor } = require('../servicios/vision/extractor');
 const { leerFactura } = require('../servicios/vision/lector');
-const { cerrarOCR, leerConOCR } = require('../servicios/vision/anonimizar');
+const { cerrarOCR, leerConOCR, LIMPIEZAS } = require('../servicios/vision/anonimizar');
 const { normalizar } = require('../servicios/vision/validacion');
 
 const RAIZ = path.join(__dirname, '..', 'pruebas-facturas');
 const CARPETA = path.resolve(process.argv[2] || path.join(RAIZ, 'fotos'));
 const SALIDA = path.resolve(process.argv[3] || path.join(RAIZ, 'resultados.md'));
+const NOTA = process.argv[4] || '';
 const PAUSA_MS = 5000; // para respetar el límite por minuto del nivel gratuito
+
+// "F07.jpg" o "7.jpeg" → "F07"
+function codigoDe(nombre) {
+    const m = nombre.match(/^F?(\d{1,2})\.(jpe?g|png|webp|pdf)$/i);
+    return m ? `F${m[1].padStart(2, '0')}` : null;
+}
 
 const textoIgual = (a, b) => normalizar(a) === normalizar(b);
 const soloCaracteres = (v) => String(v ?? '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
@@ -52,9 +61,9 @@ async function catalogoDeLaTienda() {
 
 (async () => {
     const verdad = JSON.parse(fs.readFileSync(path.join(RAIZ, 'verdad.json'), 'utf8'));
-    const archivos = fs.existsSync(CARPETA) ? fs.readdirSync(CARPETA).filter(f => /^F\d{2}\.(jpe?g|png|webp|pdf)$/i.test(f)).sort() : [];
+    const archivos = fs.existsSync(CARPETA) ? fs.readdirSync(CARPETA).filter(f => codigoDe(f)).sort((a, b) => codigoDe(a).localeCompare(codigoDe(b))) : [];
     if (archivos.length === 0) {
-        console.log(`No hay fotos en ${CARPETA}. Deben llamarse F01.jpg, F02.jpg, ...`);
+        console.log(`No hay fotos en ${CARPETA}. Deben llamarse F01.jpg o 1.jpg, según el código al pie de cada hoja.`);
         process.exit(1);
     }
 
@@ -68,7 +77,7 @@ async function catalogoDeLaTienda() {
     const seguridad = { auto_con_error: 0, auto: 0 };
 
     for (const nombre of archivos) {
-        const codigo = nombre.slice(0, 3).toUpperCase();
+        const codigo = codigoDe(nombre);
         const real = verdad[codigo];
         if (!real) continue;
         const archivo = fs.readFileSync(path.join(CARPETA, nombre));
@@ -104,7 +113,8 @@ async function catalogoDeLaTienda() {
         // ¿Algún dato personal sigue legible en la imagen que sale hacia la IA? Se comprueba releyéndola con el OCR.
         let filtrados = [];
         if (r.anon.imagen) {
-            const texto = normalizar((await leerConOCR(r.anon.imagen)).map(l => l.texto).join(' '));
+            let texto = '';
+            for (const limpieza of LIMPIEZAS) texto += ` ${normalizar((await leerConOCR(r.anon.imagen, limpieza)).map(l => l.texto).join(' '))}`;
             filtrados = real.datos_personales.filter(p => texto.includes(normalizar(p)));
         }
         privacidad.datos += real.datos_personales.length;
@@ -132,6 +142,7 @@ async function catalogoDeLaTienda() {
         '',
         `Fotos evaluadas: **${filas.length}** (${CARPETA.includes('fotos') ? 'carpeta de fotos' : path.basename(CARPETA)}). Fecha: ${new Date().toISOString().slice(0, 10)}.`,
         '',
+        ...(NOTA ? [`**Cómo se tomaron las imágenes:** ${NOTA}`, ''] : []),
         '## Aciertos por campo',
         '',
         '| Campo | Aciertos | Porcentaje |',
@@ -150,7 +161,9 @@ async function catalogoDeLaTienda() {
         '',
         '## Protección de datos personales',
         '',
-        `Datos personales impresos: ${privacidad.datos}. Siguen legibles para el OCR en la imagen enviada a la IA: ${privacidad.filtrados} (${pct(privacidad.datos - privacidad.filtrados, privacidad.datos)} protegidos)${privacidad.detalle.length ? `. Casos: ${privacidad.detalle.join(', ')}` : ''}.`,
+        `Datos personales impresos: ${privacidad.datos}. El OCR todavía los lee en la imagen enviada a la IA: ${privacidad.filtrados}${privacidad.detalle.length ? ` (${privacidad.detalle.join(', ')})` : ''}.`,
+        '',
+        '> Este conteo es solo un límite inferior: en fotos malas el OCR no lee datos que una persona sí puede leer. La medida válida es revisar a ojo las imágenes tapadas.',
         '',
         '## Detalle',
         '',
