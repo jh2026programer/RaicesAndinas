@@ -1,5 +1,7 @@
 # Automatizaciones de Raíces Andinas (n8n)
 
+> **Tercer corte:** las automatizaciones ya corren en el motor en código (`servicios/automatizacion/`, ver el `README.md` principal). Esta carpeta se conserva como especificación de los flujos y como respaldo con `AUTOMATIZACIONES=n8n`.
+
 ## Cómo funciona
 
 ```
