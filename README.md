@@ -71,6 +71,14 @@ Foto ─▶ OCR local (Tesseract) tapa datos personales ─▶ Gemini Vision dev
 - **Almacenamiento:** las imágenes quedan en `uploads/facturas/`, fuera de la carpeta pública, y solo se entregan con sesión de administrador. Se registra quién subió cada una y cuándo. Rechazar una factura borra su imagen.
 - **Plan B:** varios modelos de visión → Ollama local (opcional) → texto del OCR con un modelo de lenguaje (confianza limitada a 70 %, siempre con revisión) → reintento automático desde la cola.
 
+### De la factura al inventario
+
+Al confirmar una factura se emite el evento `factura.confirmada` y el motor ejecuta el flujo **C06**, todo o nada: registra la compra (`compras`), ajusta el stock, concilia las solicitudes de compra y avisa por Telegram.
+
+- **Sin duplicar stock:** aprobar una solicitud ya suma el stock, así que cuando llega su factura solo se ajusta la diferencia. Una misma factura nunca se registra dos veces.
+- **Productos:** cada línea se enlaza al catálogo y el administrador puede cambiarla. Lo que "no es del catálogo" queda en la compra, pero no mueve stock.
+- **Canales de captura:** cámara del celular, archivos o el botón 📷 del chatbot, visible solo con sesión de administrador.
+
 ### Medir la precisión
 
 ```bash
@@ -84,6 +92,10 @@ npm run facturas:evaluar
 ```
 
 El resultado queda en `pruebas-facturas/resultados.md`.
+
+## Seguridad
+
+Roles y sesiones firmadas, límites de intentos por IP en inicio de sesión, registro y chat, encabezados de seguridad, API cerrada a otros sitios y claves solo en variables de entorno. Para publicar en internet, ver [DESPLIEGUE.md](DESPLIEGUE.md).
 
 ## Pruebas
 

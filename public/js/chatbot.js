@@ -1,7 +1,7 @@
 // public/js/chatbot.js
 // Asistente virtual de Raíces Andinas.
 // El navegador solo muestra la conversación: todas las respuestas vienen del servidor
-// (menú por reglas con precios reales de la BD, o inteligencia artificial vía n8n + Gemini).
+// (menú por reglas con precios reales de la BD, o inteligencia artificial).
 
 (function () {
     const { esc, t } = RA;
@@ -45,6 +45,7 @@
                 <input type="text" id="chatComentario" maxlength="300" data-i18n-placeholder="chat.comentario" placeholder="Comentario (opcional)">
             </div>
             <form class="chat-entrada" id="chatFormulario">
+                ${localStorage.getItem('adminToken') ? `<label class="chat-adjuntar" title="Enviar foto de una factura" aria-label="Enviar foto de una factura">📷<input type="file" id="chatFactura" accept="image/*,application/pdf" hidden></label>` : ''}
                 <input type="text" id="chatInput" maxlength="500" autocomplete="off" data-i18n-placeholder="chat.input" placeholder="Escribe tu mensaje...">
                 <button type="submit" id="chatEnviar" aria-label="Enviar">${ICONO_ENVIAR}</button>
             </form>`;
@@ -60,6 +61,14 @@
             const b = e.target.closest('button[data-opcion]');
             if (b) enviar(b.dataset.opcion);
         });
+
+        const entradaFactura = document.getElementById('chatFactura');
+        if (entradaFactura) {
+            entradaFactura.addEventListener('change', () => {
+                if (entradaFactura.files[0]) enviarFactura(entradaFactura.files[0]);
+                entradaFactura.value = '';
+            });
+        }
 
         const estrellas = document.querySelectorAll('#chatEstrellas button');
         estrellas.forEach(b => {
@@ -160,6 +169,50 @@
         mensajesEnviados++;
         if (mensajesEnviados >= 2 && !calificado) {
             document.getElementById('chatCalificacion').classList.remove('oculto');
+        }
+    }
+
+    // Canal para el equipo: el administrador envía la foto de una factura por el chat.
+    // La revisión y la confirmación se hacen en el panel, donde se ve todo el detalle.
+    async function enviarFactura(archivo) {
+        await iniciarChat();
+        agregarMensaje('cliente', `📷 ${archivo.name}`);
+        const escribiendo = agregarMensaje('bot', '');
+        escribiendo.classList.add('escribiendo');
+        escribiendo.innerHTML = '<span></span><span></span><span></span>';
+        const encabezados = { Authorization: `Bearer ${localStorage.getItem('adminToken')}` };
+
+        const responder = (texto) => {
+            escribiendo.remove();
+            agregarMensaje('bot', texto);
+        };
+
+        try {
+            const formulario = new FormData();
+            formulario.append('origen', 'chatbot');
+            formulario.append('factura', archivo);
+            const res = await fetch('/api/admin/facturas', { method: 'POST', headers: encabezados, body: formulario });
+            const subida = await res.json().catch(() => ({}));
+            if (res.status === 401) return responder('🔒 Tu sesión de administrador expiró. Vuelve a entrar al panel.');
+            if (!res.ok) return responder(`⚠️ ${subida.error || 'No pude recibir la factura.'}`);
+
+            // La lectura toma unos segundos: se pregunta cada 3 s, máximo 2 minutos
+            for (let intento = 0; intento < 40; intento++) {
+                await new Promise(r => setTimeout(r, 3000));
+                const consulta = await fetch(`/api/admin/facturas/${subida.id}`, { headers: encabezados });
+                if (!consulta.ok) continue;
+                const f = await consulta.json();
+                if (f.estado === 'procesando') continue;
+                if (['lista', 'por_revisar'].includes(f.estado)) {
+                    const d = f.lectura.datos;
+                    const estado = f.estado === 'lista' ? '✅ Se ve bien.' : `🟡 Necesita revisión:\n${f.lectura.alertas.map(a => `• ${a}`).join('\n')}`;
+                    return responder(`🧾 *Factura #${f.id} leída*\n${d.proveedor || 'Proveedor sin leer'} · ${d.numero || 's/n'}\nTotal: *${RA.pesos(d.total)}* · ${d.items.length} productos\nConfianza: ${Math.round(f.lectura.confianza_global * 100)} %\n\n${estado}\n\nConfírmala en Panel → Facturas para sumar el stock.`);
+                }
+                return responder(`⚠️ ${f.motivo || 'No se pudo leer la factura.'}`);
+            }
+            responder('⏳ La lectura está tardando. Mira el resultado en Panel → Facturas.');
+        } catch {
+            responder('⚠️ No hay conexión con el servidor.');
         }
     }
 

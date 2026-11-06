@@ -915,3 +915,6 @@ textarea { resize: vertical; min-height: 90px; }
     .chat-boton { right: 16px; bottom: 16px; }
     .herramientas select { flex: 1 1 100%; }
 }
+
+.chat-adjuntar { display: flex; align-items: center; justify-content: center; width: 40px; flex-shrink: 0; font-size: 1.2rem; cursor: pointer; border-radius: 50%; }
+.chat-adjuntar:hover { background: var(--crema); }

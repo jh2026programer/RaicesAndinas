@@ -15,7 +15,8 @@ const conClaves = { TIENDA_EMAIL_REMITENTE: 'tienda@x.co', GMAIL_APP_PASSWORD: '
 
 test('sin credenciales los canales quedan omitidos, no fallan', async () => {
     const canales = crearCanales({});
-    assert.deepStrictEqual(canales.estado(), { gmail: false, telegram: false });
+    assert.strictEqual(canales.estado().gmail, false);
+    assert.strictEqual(canales.estado().telegram, false);
     assert.strictEqual((await canales.correo({ para: 'a@x.co', asunto: 'A', html: 'H' })).omitido, true);
     assert.strictEqual((await canales.telegram('hola')).omitido, true);
 });
@@ -57,4 +58,23 @@ test('Gmail: una contraseña rechazada es permanente; un corte de red se puede r
 
     nodemailer.createTransport = () => ({ sendMail: async () => { throw Object.assign(new Error('socket'), { code: 'ECONNRESET' }); } });
     await assert.rejects(crearCanales(conClaves).correo({ para: 'a@x.co' }), (e) => !e.permanente);
+});
+
+test('Brevo: si hay clave, el correo sale por API y tiene prioridad sobre Gmail', async () => {
+    let enviado;
+    global.fetch = async (url, opciones) => { enviado = { url, cuerpo: JSON.parse(opciones.body), clave: opciones.headers['api-key'] }; return { ok: true }; };
+    const canales = crearCanales({ ...conClaves, BREVO_API_KEY: 'clave' });
+    assert.strictEqual(canales.estado().correo_por, 'Brevo');
+    assert.deepStrictEqual(await canales.correo({ para: 'a@x.co', asunto: 'A', html: 'H' }), { enviado: true });
+    assert.match(enviado.url, /api\.brevo\.com/);
+    assert.strictEqual(enviado.cuerpo.to[0].email, 'a@x.co');
+    assert.strictEqual(enviado.cuerpo.sender.email, 'tienda@x.co');
+});
+
+test('Brevo: una clave rechazada es permanente; una saturación se puede reintentar', async () => {
+    const canales = crearCanales({ ...conClaves, BREVO_API_KEY: 'clave' });
+    global.fetch = async () => ({ ok: false, status: 401, json: async () => ({ message: 'Key not found' }) });
+    await assert.rejects(canales.correo({ para: 'a@x.co' }), (e) => e.permanente === true);
+    global.fetch = async () => ({ ok: false, status: 502, json: async () => ({}) });
+    await assert.rejects(canales.correo({ para: 'a@x.co' }), (e) => !e.permanente);
 });

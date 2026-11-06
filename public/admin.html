@@ -181,6 +181,10 @@
                     <div class="panel-titulo"><h2>🧾 Facturas</h2><button class="btn btn-fantasma btn-sm" id="btnRefrescarFacturas">Actualizar</button></div>
                     <div class="tabla-contenedor" id="tablaFacturas"></div>
                 </div>
+                <div class="panel">
+                    <div class="panel-titulo"><h2>📦 Compras registradas</h2></div>
+                    <div class="tabla-contenedor" id="tablaComprasRegistradas"></div>
+                </div>
             </section>
 
             <!-- AUTOMATIZACIONES -->
@@ -756,6 +760,7 @@
     async function cargarFacturas() {
         const { ok, data } = await adminApi('/api/admin/facturas');
         if (!ok) return;
+        cargarComprasRegistradas();
         const porAtender = data.filter(f => ['lista', 'por_revisar'].includes(f.estado)).length;
         const globo = document.getElementById('globoFacturas');
         globo.textContent = porAtender;
@@ -809,7 +814,10 @@
 
     const filaItemFactura = (i = {}) => `<tr data-item-factura>
         <td><input data-c="descripcion" value="${esc(i.descripcion ?? '')}" aria-label="Descripción">
-            ${i.producto_nombre ? `<span class="secundario">→ ${esc(i.producto_nombre)}</span>` : (i.descripcion ? '<span class="secundario" style="color:#b7791f">Sin producto en el catálogo</span>' : '')}</td>
+            <select data-c="producto_id" aria-label="Producto del catálogo" style="margin-top:4px;${i.producto_id ? '' : 'border-color:#d4a853;background:#fff9e8'}">
+                <option value="">No es del catálogo (no suma stock)</option>
+                ${(estado.facturaAbierta?.productos || []).map(p => `<option value="${p.id}" ${p.id === i.producto_id ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}
+            </select></td>
         <td><input data-c="cantidad" type="number" min="0" value="${i.cantidad ?? ''}" aria-label="Cantidad"></td>
         <td><input data-c="valor_unitario" type="number" min="0" value="${i.valor_unitario ?? ''}" aria-label="Valor unitario"></td>
         <td><input data-c="subtotal" type="number" min="0" value="${i.subtotal ?? ''}" aria-label="Subtotal"></td>
@@ -842,6 +850,7 @@
             <h2 style="margin:0 0 4px">Factura #${f.id} <span class="estado ${ESTADOS_FACTURA[f.estado].clase}" style="vertical-align:middle">${ESTADOS_FACTURA[f.estado].nombre}</span></h2>
             <p style="color:var(--texto-suave);margin:0 0 14px;font-size:.88rem">Subida por ${esc(f.subido_por_nombre || '—')} el ${fechaHora(f.subido_en)}${f.modelo ? ` · Leída con ${esc(f.modelo)}` : ''}${f.zonas_tapadas !== null ? ` · ${f.zonas_tapadas} datos personales tapados antes de enviarla` : ''}</p>
             ${f.motivo ? `<div class="alerta alerta-error" style="margin-bottom:12px">${esc(f.motivo)}</div>` : ''}
+            ${f.compra ? `<div class="alerta" style="margin-bottom:12px;background:#e9f6ee;border:1px solid #bfe3cc;color:#22643f">✅ Registrada como compra #${f.compra.id}. El inventario ya se actualizó.</div>` : ''}
             ${l && l.alertas.length && editable ? `<div class="alerta" style="margin-bottom:12px;background:#fff9e8;border:1px solid #e8d49a;color:#7a5a12"><strong>Revisa esto antes de confirmar:</strong><ul style="margin:6px 0 0;padding-left:18px">${l.alertas.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>` : ''}
             <div class="factura-revision">
                 <div>
@@ -881,6 +890,22 @@
             </div>`;
         abrirModal('modalFactura');
         cargarImagenFactura(f.id, 'original', 'imagenFactura');
+    }
+
+    async function cargarComprasRegistradas() {
+        const { ok, data } = await adminApi('/api/admin/compras-registradas');
+        if (!ok) return;
+        document.getElementById('tablaComprasRegistradas').innerHTML = data.length
+            ? `<table class="tabla"><thead><tr><th>Compra</th><th>Proveedor</th><th>Factura</th><th>Fecha</th><th class="derecha">Unidades</th><th class="derecha">Total</th></tr></thead><tbody>
+                ${data.map(c => `<tr>
+                    <td><strong>#${c.id}</strong></td>
+                    <td>${esc(c.proveedor)}</td>
+                    <td>${esc(c.numero_factura)}<span class="secundario">Factura #${c.factura_id}</span></td>
+                    <td>${fecha(c.fecha_factura)}</td>
+                    <td class="derecha">${c.unidades}</td>
+                    <td class="derecha"><strong>${pesos(c.total)}</strong></td>
+                </tr>`).join('')}</tbody></table>`
+            : '<p class="vacio">Cuando confirmes una factura, la compra aparecerá aquí.</p>';
     }
 
     function datosDelFormularioFactura() {
@@ -929,7 +954,7 @@
         error: { nombre: 'Error', clase: 'estado-cancelado' }
     };
     const ESTADOS_COMPRA = {
-        pendiente: 'estado-pendiente', aprobada: 'estado-entregado', rechazada: 'estado-cancelado', vencida: 'estado-cancelado'
+        pendiente: 'estado-pendiente', aprobada: 'estado-entregado', rechazada: 'estado-cancelado', vencida: 'estado-cancelado', cumplida: 'estado-entregado', facturada: 'estado-entregado'
     };
     const fechaHora = (v) => new Date(v).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const filaServicio = (nombre, activo, detalle) => `<div class="barra-fila" style="grid-template-columns:1fr auto">

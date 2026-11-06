@@ -182,6 +182,8 @@ select.estado-cancelado { background-color: var(--rojo-50); color: var(--rojo); 
 .tabla-factura { min-width: 520px; }
 .tabla-factura td, .tabla-factura th { padding: 6px 4px; }
 .tabla-factura input { width: 100%; min-width: 0; padding: 7px 8px; font-size: 0.86rem; border: 1px solid var(--borde-suave); border-radius: 8px; background: #fff; color: inherit; font-family: inherit; }
+.tabla-factura select { width: 100%; padding: 5px 6px; font-size: 0.78rem; border: 1px solid var(--borde-suave); border-radius: 8px; background: #fff; color: inherit; font-family: inherit; }
+.tabla-factura select:disabled { background: transparent; border-color: transparent; }
 .tabla-factura input:focus { outline: 2px solid var(--dorado); outline-offset: 1px; }
 .tabla-factura input[type="number"] { text-align: right; }
 .tabla-factura input:disabled { background: transparent; border-color: transparent; }
