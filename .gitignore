@@ -22,3 +22,6 @@ Guia_*.pdf
 
 # Archivos temporales de Office
 ~$*
+
+# Ayudante local con contrasena escrita en el codigo
+generar_hash.js
