@@ -10,9 +10,14 @@ try {
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const { db, probarConexion } = require('./db');
 const chatbot = require('./servicios/chatbot');
+const consultas = require('./servicios/consultas');
+const { crearAutomatizacion } = require('./servicios/automatizacion');
+const { registrarRutas } = require('./servicios/automatizacion/rutas');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,7 +29,7 @@ const ENVIO = {
     gratisDesde: 80000 // envío gratis en compras MAYORES a este valor
 };
 
-// Minutos que espera n8n después de la entrega para enviar la encuesta (3 días por defecto)
+// Minutos que espera el motor después de la entrega para enviar la encuesta (3 días por defecto)
 const ENCUESTA_ESPERA_MINUTOS = parseInt(process.env.ENCUESTA_ESPERA_MINUTOS) || 4320;
 
 // ============================================
@@ -69,7 +74,7 @@ function sesionDe(req) {
     return auth.startsWith('Bearer ') ? verificarToken(auth.slice(7)) : null;
 }
 
-// Permite el acceso a un admin con sesión válida o a n8n con su API key
+// Permite el acceso a un admin con sesión válida o a una integración con la API key
 function requiereAdmin(req, res, next) {
     const apiKey = req.get('x-api-key');
     if (apiKey && process.env.AUTOMATION_API_KEY && compararSeguro(apiKey, process.env.AUTOMATION_API_KEY)) {
@@ -106,10 +111,19 @@ function tokenEncuesta(pedidoId) {
 }
 
 // ============================================
-// AUTOMATIZACIONES (n8n)
+// AUTOMATIZACIONES
 // ============================================
-// Envía un evento a un webhook de n8n sin bloquear la respuesta al cliente.
-// Si n8n está apagado, la tienda sigue funcionando normalmente.
+// El motor en código es el modo normal. AUTOMATIZACIONES=n8n vuelve a los webhooks de n8n
+// (solo como respaldo mientras termina la migración).
+const automatizacion = crearAutomatizacion({ db, firmar });
+const MODO_N8N = process.env.AUTOMATIZACIONES === 'n8n';
+
+// Emite un evento sin bloquear la respuesta al cliente. Si algo falla, la tienda sigue funcionando.
+function emitirEvento(evento, datos) {
+    if (MODO_N8N) return notificarN8n(evento.replace('.', '-'), datos);
+    automatizacion.emitir(evento, datos);
+}
+
 function notificarN8n(evento, datos) {
     const baseUrl = process.env.N8N_WEBHOOK_URL;
     if (!baseUrl) return;
@@ -124,10 +138,8 @@ function notificarN8n(evento, datos) {
         .catch(err => console.warn(`⚠️ n8n [${evento}] no disponible: ${err.message}`));
 }
 
-// Pregunta a la IA (flujo de n8n con Gemini) y ESPERA la respuesta.
-// Si Gemini falla de forma temporal (ej. "alta demanda"), se reintenta una vez.
-// Devuelve null si la IA no está disponible, para usar las reglas como respaldo.
-async function consultarIA(datos, intento = 1) {
+// Pregunta a la IA por medio de n8n y ESPERA la respuesta. Devuelve null si no está disponible.
+async function consultarIAEnN8n(datos, intento = 1) {
     const baseUrl = process.env.N8N_WEBHOOK_URL;
     if (!baseUrl || process.env.CHATBOT_IA === 'false') return null;
 
@@ -144,7 +156,7 @@ async function consultarIA(datos, intento = 1) {
             // 500 = el flujo falló (normalmente Gemini saturado). Reintentar si aún hay tiempo.
             if (res.status >= 500 && intento === 1 && Date.now() - inicio < 15000) {
                 await new Promise(r => setTimeout(r, 1500));
-                return consultarIA(datos, 2);
+                return consultarIAEnN8n(datos, 2);
             }
             return null;
         }
@@ -266,6 +278,14 @@ async function aplicarMigraciones() {
             FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE
         )`
     );
+    await aplicarMigracionMotor();
+}
+
+// Tablas del motor de automatización (database/migraciones/003_motor_automatizacion.sql)
+async function aplicarMigracionMotor() {
+    const sql = fs.readFileSync(path.join(__dirname, 'database', 'migraciones', '003_motor_automatizacion.sql'), 'utf8');
+    const sentencias = sql.split('\n').filter(l => !l.trim().startsWith('--')).join('\n').split(';').map(x => x.trim()).filter(Boolean);
+    for (const sentencia of sentencias) await db.query(sentencia);
 }
 
 (async function iniciar() {
@@ -274,6 +294,7 @@ async function aplicarMigraciones() {
         try {
             await aplicarMigraciones();
             console.log('✅ Base de datos lista');
+            if (!MODO_N8N) await automatizacion.iniciar();
         } catch (error) {
             console.error('❌ Error aplicando migraciones:', error.message);
         }
@@ -353,8 +374,8 @@ app.post('/api/registro', async (req, res) => {
             );
         }
 
-        // Solo datos básicos: los datos sensibles (salud) nunca salen hacia n8n
-        notificarN8n('usuario-registrado', {
+        // Solo datos básicos: los datos sensibles (salud) nunca salen hacia las automatizaciones
+        emitirEvento('usuario.registrado', {
             usuario: { id: result.insertId, nombres, apellidos, correo }
         });
 
@@ -484,7 +505,7 @@ app.post('/api/password/olvido', async (req, res) => {
             [usuario.id, hashToken(token), RESET_MINUTOS]
         );
 
-        notificarN8n('password-reset', {
+        emitirEvento('password.reset', {
             usuario: { nombres: usuario.nombres, correo: usuario.correo },
             enlace: `${TIENDA_URL}/restablecer.html?token=${token}`,
             minutos: RESET_MINUTOS
@@ -867,7 +888,7 @@ app.post('/api/pedidos', requiereUsuario, async (req, res) => {
 
         console.log(`✅ Pedido #${pedido_id} creado. Total: ${total}`);
 
-        notificarN8n('pedido-creado', {
+        emitirEvento('pedido.creado', {
             pedido: {
                 id: pedido_id,
                 subtotal: subtotal,
@@ -885,7 +906,7 @@ app.post('/api/pedidos', requiereUsuario, async (req, res) => {
         // Alerta inmediata: productos que con esta compra quedaron en su stock mínimo o por debajo
         const productosBajoMinimo = detalles.filter(d => d.bajo_minimo);
         if (productosBajoMinimo.length > 0) {
-            notificarN8n('stock-bajo', {
+            emitirEvento('stock.bajo', {
                 pedido_id: pedido_id,
                 productos: productosBajoMinimo.map(d => ({
                     id: d.producto_id,
@@ -1024,13 +1045,13 @@ app.put('/api/pedidos/:id/estado', requiereAdmin, async (req, res) => {
             conexion.release();
         }
 
-        // Avisar a n8n solo si el estado realmente cambió
+        // Disparar las automatizaciones solo si el estado realmente cambió
         if (estado !== estadoAnterior) {
             const p = pedidoActual[0];
             const items = await obtenerItemsPedido(p.id);
             const cliente = { id: p.usuario_id, nombres: p.nombres, apellidos: p.apellidos, correo: p.correo, telefono: p.telefono };
 
-            notificarN8n('pedido-estado', {
+            emitirEvento('pedido.estado', {
                 pedido: {
                     id: p.id,
                     total: parseFloat(p.total),
@@ -1042,9 +1063,9 @@ app.put('/api/pedidos/:id/estado', requiereAdmin, async (req, res) => {
                 cliente
             });
 
-            // Al entregarse, n8n espera unos días y le pide al cliente que califique su compra
+            // Al entregarse, el motor espera unos días y le pide al cliente que califique su compra
             if (estado === 'entregado') {
-                notificarN8n('pedido-entregado', {
+                emitirEvento('pedido.entregado', {
                     pedido: { id: p.id, total: parseFloat(p.total), items },
                     cliente,
                     enlace_encuesta: `${TIENDA_URL}/encuesta.html?pedido=${p.id}&token=${tokenEncuesta(p.id)}`,
@@ -1054,7 +1075,7 @@ app.put('/api/pedidos/:id/estado', requiereAdmin, async (req, res) => {
 
             // Al cancelarse, se avisa al admin (el stock ya fue devuelto arriba)
             if (estado === 'cancelado') {
-                notificarN8n('pedido-cancelado', {
+                emitirEvento('pedido.cancelado', {
                     pedido: { id: p.id, total: parseFloat(p.total), estado_anterior: estadoAnterior, items },
                     cliente
                 });
@@ -1147,7 +1168,7 @@ app.post('/api/encuestas', async (req, res) => {
             [pedidoId]
         );
         if (pedido) {
-            notificarN8n('encuesta-respondida', {
+            emitirEvento('encuesta.respondida', {
                 pedido: { id: pedido.id, total: parseFloat(pedido.total), items: await obtenerItemsPedido(pedido.id) },
                 cliente: { nombres: pedido.nombres, apellidos: pedido.apellidos, correo: pedido.correo, telefono: pedido.telefono },
                 puntuacion,
@@ -1266,6 +1287,7 @@ app.post('/api/chat/mensaje', async (req, res) => {
         const productos = await listarProductos();
         let resultado = chatbot.responderConReglas({ mensaje: texto, idioma, productos, envio: ENVIO });
         let fuente = 'reglas';
+        let proveedorIA = null;
 
         if (!resultado.entendido) {
             const [historial] = await db.query(
@@ -1273,27 +1295,46 @@ app.post('/api/chat/mensaje', async (req, res) => {
                 [chat_id]
             );
 
-            const respuestaIA = await consultarIA({
-                mensaje: texto,
-                idioma,
-                // Historial sin el mensaje actual, del más antiguo al más reciente
-                historial: historial.slice(1).reverse().map(m => ({ de: m.emisor, texto: m.mensaje })),
-                catalogo: productos.map(p => ({
-                    nombre: p.nombre,
-                    categoria: p.categoria_nombre,
-                    descripcion: p.descripcion,
-                    precio: p.precio,
-                    descuento: p.descuento,
-                    precio_final: p.precio_final,
-                    stock: p.stock,
-                    destacado: p.destacado
-                })),
-                tienda: {
-                    envio_costo: ENVIO.costo,
-                    envio_gratis_desde: ENVIO.gratisDesde,
+            // Historial sin el mensaje actual, del más antiguo al más reciente
+            const memoria = historial.slice(1).reverse().map(m => ({ de: m.emisor, texto: m.mensaje }));
+            let respuestaIA = null;
+
+            if (MODO_N8N) {
+                respuestaIA = await consultarIAEnN8n({
+                    mensaje: texto,
+                    idioma,
+                    historial: memoria,
+                    catalogo: productos.map(p => ({
+                        nombre: p.nombre,
+                        categoria: p.categoria_nombre,
+                        descripcion: p.descripcion,
+                        precio: p.precio,
+                        descuento: p.descuento,
+                        precio_final: p.precio_final,
+                        stock: p.stock,
+                        destacado: p.destacado
+                    })),
+                    tienda: {
+                        envio_costo: ENVIO.costo,
+                        envio_gratis_desde: ENVIO.gratisDesde,
+                        contacto: chatbot.CONTACTO
+                    }
+                });
+            } else {
+                const [[chatActual]] = await db.query('SELECT usuario_id FROM chats WHERE id = ?', [chat_id]);
+                const r = await automatizacion.responderChat({
+                    texto,
+                    idioma,
+                    chat_id,
+                    usuarioId: chatActual.usuario_id,
+                    historial: memoria,
+                    catalogo: productos,
+                    envio: ENVIO,
                     contacto: chatbot.CONTACTO
-                }
-            });
+                });
+                respuestaIA = r.respuesta;
+                proveedorIA = r.proveedor;
+            }
 
             if (respuestaIA) {
                 resultado = { respuesta: respuestaIA, entendido: true, solicitaAsesor: false };
@@ -1331,7 +1372,7 @@ app.post('/api/chat/mensaje', async (req, res) => {
                      ORDER BY id DESC LIMIT 5`,
                     [chat_id]
                 );
-                notificarN8n('chat-asesor', {
+                emitirEvento('chat.asesor', {
                     chat_id: chat_id,
                     cliente: chat[0].correo
                         ? { nombres: chat[0].nombres, apellidos: chat[0].apellidos, correo: chat[0].correo, telefono: chat[0].telefono }
@@ -1341,7 +1382,7 @@ app.post('/api/chat/mensaje', async (req, res) => {
             }
         }
 
-        res.json({ success: true, respuesta: resultado.respuesta, escalado, fuente });
+        res.json({ success: true, respuesta: resultado.respuesta, escalado, fuente, proveedor: fuente === 'ia' ? proveedorIA : null });
 
     } catch (error) {
         console.error('Error en chat:', error);
@@ -1375,7 +1416,7 @@ app.post('/api/calificacion', async (req, res) => {
                  WHERE ch.id = ?`,
                 [chat_id]
             );
-            notificarN8n('calificacion-baja', {
+            emitirEvento('calificacion.baja', {
                 chat_id: chat_id,
                 puntuacion: estrellas,
                 comentario: comentario || null,
@@ -1392,134 +1433,14 @@ app.post('/api/calificacion', async (req, res) => {
 });
 
 // ============================================
-// 11. REPORTE MENSUAL (Admin y n8n)
+// 11. REPORTE MENSUAL
 // ============================================
 app.get('/api/reportes/mensual', requiereAdmin, async (req, res) => {
     try {
         const hoy = new Date();
         const mes = parseInt(req.query.mes) || hoy.getMonth() + 1;
         const anio = parseInt(req.query.anio) || hoy.getFullYear();
-
-        const [[atendidas]] = await db.query(
-            `SELECT COUNT(DISTINCT session_id) as total FROM chats
-            WHERE MONTH(fecha_inicio) = ? AND YEAR(fecha_inicio) = ?`,
-            [mes, anio]
-        );
-
-        const [[calificaciones]] = await db.query(
-            `SELECT
-                AVG(puntuacion) as promedio,
-                COUNT(*) as total,
-                SUM(CASE WHEN puntuacion = 5 THEN 1 ELSE 0 END) as cinco,
-                SUM(CASE WHEN puntuacion = 4 THEN 1 ELSE 0 END) as cuatro,
-                SUM(CASE WHEN puntuacion = 3 THEN 1 ELSE 0 END) as tres,
-                SUM(CASE WHEN puntuacion = 2 THEN 1 ELSE 0 END) as dos,
-                SUM(CASE WHEN puntuacion = 1 THEN 1 ELSE 0 END) as uno
-            FROM calificaciones c
-            JOIN chats ch ON c.chat_id = ch.id
-            WHERE MONTH(ch.fecha_inicio) = ? AND YEAR(ch.fecha_inicio) = ?`,
-            [mes, anio]
-        );
-
-        const [sugerenciasData] = await db.query(
-            `SELECT c.puntuacion, c.comentario, ch.escalado_humano
-            FROM calificaciones c
-            JOIN chats ch ON c.chat_id = ch.id
-            WHERE MONTH(ch.fecha_inicio) = ? AND YEAR(ch.fecha_inicio) = ?
-            ORDER BY c.fecha DESC LIMIT 20`,
-            [mes, anio]
-        );
-
-        // Ventas del mes (los pedidos cancelados no cuentan como ingreso)
-        const [[ventas]] = await db.query(
-            `SELECT
-                COUNT(*) as pedidos,
-                SUM(CASE WHEN estado = 'cancelado' THEN 1 ELSE 0 END) as cancelados,
-                COALESCE(SUM(CASE WHEN estado <> 'cancelado' THEN total ELSE 0 END), 0) as ingresos
-            FROM pedidos
-            WHERE MONTH(fecha) = ? AND YEAR(fecha) = ?`,
-            [mes, anio]
-        );
-
-        const [topProductos] = await db.query(
-            `SELECT pr.nombre, SUM(dp.cantidad) as unidades, SUM(dp.subtotal) as ingresos
-            FROM detalle_pedido dp
-            JOIN pedidos p ON dp.pedido_id = p.id
-            JOIN productos pr ON dp.producto_id = pr.id
-            WHERE p.estado <> 'cancelado' AND MONTH(p.fecha) = ? AND YEAR(p.fecha) = ?
-            GROUP BY pr.id, pr.nombre
-            ORDER BY unidades DESC
-            LIMIT 5`,
-            [mes, anio]
-        );
-
-        // Encuestas de satisfacción de compras respondidas en el mes
-        const [[encuestas]] = await db.query(
-            `SELECT AVG(puntuacion) as promedio, COUNT(*) as total
-             FROM encuestas WHERE MONTH(fecha) = ? AND YEAR(fecha) = ?`,
-            [mes, anio]
-        );
-
-        // Sugerencias automáticas (máximo 3)
-        const sugerencias = [];
-        const totalCalif = calificaciones.total || 0;
-        const promedio = parseFloat(calificaciones.promedio || 0);
-
-        if (totalCalif > 0) {
-            if (promedio >= 4.5) {
-                sugerencias.push('🌟 Excelente promedio de calificaciones. Mantener las estrategias actuales de atención.');
-            } else if (promedio >= 3.5) {
-                sugerencias.push('📈 Buen promedio de calificaciones. Se sugiere mejorar en tiempos de respuesta.');
-            } else {
-                sugerencias.push('⚠️ Calificaciones bajas. Revisar urgentemente los protocolos de atención al cliente.');
-            }
-        } else {
-            sugerencias.push('📊 No hay calificaciones registradas. Promover la encuesta de satisfacción después del chat.');
-        }
-
-        const escalados = sugerenciasData.filter(s => s.escalado_humano).length;
-        if (escalados > 3) {
-            sugerencias.push(`📞 ${escalados} conversaciones escaladas a humano. Mejorar el conocimiento del chatbot.`);
-        }
-
-        const palabrasNegativas = ['mal', 'tard', 'error', 'problema', 'queja'];
-        const comentarioNegativo = sugerenciasData.find(s =>
-            s.comentario && palabrasNegativas.some(p => s.comentario.toLowerCase().includes(p)));
-        if (comentarioNegativo && sugerencias.length < 3) {
-            sugerencias.push(`📝 Comentario negativo detectado: "${comentarioNegativo.comentario}". Revisar este caso.`);
-        }
-
-        res.json({
-            mes: `${anio}-${String(mes).padStart(2, '0')}`,
-            personas_atendidas: atendidas.total || 0,
-            calificaciones: {
-                promedio: promedio.toFixed(2),
-                total: totalCalif,
-                distribucion: {
-                    '5': Number(calificaciones.cinco) || 0,
-                    '4': Number(calificaciones.cuatro) || 0,
-                    '3': Number(calificaciones.tres) || 0,
-                    '2': Number(calificaciones.dos) || 0,
-                    '1': Number(calificaciones.uno) || 0
-                }
-            },
-            sugerencias: sugerencias.slice(0, 3),
-            ventas: {
-                pedidos: ventas.pedidos || 0,
-                cancelados: Number(ventas.cancelados) || 0,
-                ingresos: parseFloat(ventas.ingresos) || 0,
-                top_productos: topProductos.map(p => ({
-                    nombre: p.nombre,
-                    unidades: Number(p.unidades),
-                    ingresos: parseFloat(p.ingresos)
-                }))
-            },
-            satisfaccion_compras: {
-                promedio: encuestas.promedio ? parseFloat(encuestas.promedio).toFixed(2) : null,
-                total: encuestas.total || 0
-            }
-        });
-
+        res.json(await consultas.reporteMensual(db, mes, anio));
     } catch (error) {
         console.error('Error en reporte:', error);
         res.status(500).json({ error: 'Error al generar reporte' });
@@ -1527,36 +1448,11 @@ app.get('/api/reportes/mensual', requiereAdmin, async (req, res) => {
 });
 
 // ============================================
-// 12. RESUMEN DIARIO (para la automatización de n8n)
+// 12. RESUMEN DIARIO
 // ============================================
 app.get('/api/admin/resumen-diario', requiereAdmin, async (req, res) => {
     try {
-        const horas = parseInt(req.query.horas) || 48;
-
-        const [stockBajo] = await db.query(
-            `SELECT id, nombre, stock, stock_minimo
-             FROM productos
-             WHERE stock <= stock_minimo
-             ORDER BY stock ASC`
-        );
-
-        const [pedidosAtrasados] = await db.query(
-            `SELECT p.id, p.total, p.fecha, u.nombres, u.apellidos, u.correo,
-                    TIMESTAMPDIFF(HOUR, p.fecha, NOW()) as horas_pendiente
-             FROM pedidos p
-             JOIN usuarios u ON p.usuario_id = u.id
-             WHERE p.estado = 'pendiente' AND p.fecha <= NOW() - INTERVAL ? HOUR
-             ORDER BY p.fecha ASC`,
-            [horas]
-        );
-
-        res.json({
-            fecha: new Date().toISOString(),
-            stock_bajo: stockBajo,
-            pedidos_atrasados: pedidosAtrasados,
-            horas_limite: horas
-        });
-
+        res.json(await consultas.resumenDiario(db, parseInt(req.query.horas) || 48));
     } catch (error) {
         console.error('Error en resumen diario:', error);
         res.status(500).json({ error: 'Error al generar resumen diario' });
@@ -1564,48 +1460,11 @@ app.get('/api/admin/resumen-diario', requiereAdmin, async (req, res) => {
 });
 
 // ============================================
-// 12.1 CIERRE DEL DÍA: ventas de hoy vs. ayer (para n8n, cada noche)
+// 12.1 CIERRE DEL DÍA: ventas de hoy vs. ayer
 // ============================================
 app.get('/api/admin/cierre-dia', requiereAdmin, async (req, res) => {
     try {
-        // Ventas de hoy y de ayer (los pedidos cancelados no cuentan como venta)
-        const [[ventas]] = await db.query(
-            `SELECT
-                SUM(CASE WHEN DATE(fecha) = CURDATE() AND estado <> 'cancelado' THEN 1 ELSE 0 END) as pedidos_hoy,
-                COALESCE(SUM(CASE WHEN DATE(fecha) = CURDATE() AND estado <> 'cancelado' THEN total ELSE 0 END), 0) as ingresos_hoy,
-                SUM(CASE WHEN DATE(fecha) = CURDATE() AND estado = 'cancelado' THEN 1 ELSE 0 END) as cancelados_hoy,
-                COALESCE(SUM(CASE WHEN DATE(fecha) = CURDATE() - INTERVAL 1 DAY AND estado <> 'cancelado' THEN total ELSE 0 END), 0) as ingresos_ayer
-             FROM pedidos
-             WHERE fecha >= CURDATE() - INTERVAL 1 DAY`
-        );
-
-        const [topProductos] = await db.query(
-            `SELECT pr.nombre, SUM(dp.cantidad) as unidades
-             FROM detalle_pedido dp
-             JOIN pedidos p ON dp.pedido_id = p.id
-             JOIN productos pr ON dp.producto_id = pr.id
-             WHERE DATE(p.fecha) = CURDATE() AND p.estado <> 'cancelado'
-             GROUP BY pr.id, pr.nombre
-             ORDER BY unidades DESC
-             LIMIT 3`
-        );
-
-        const [[pendientes]] = await db.query(`SELECT COUNT(*) as total FROM pedidos WHERE estado = 'pendiente'`);
-        const [[nuevosClientes]] = await db.query(
-            `SELECT COUNT(*) as total FROM usuarios WHERE rol = 'cliente' AND DATE(fecha_registro) = CURDATE()`
-        );
-
-        res.json({
-            fecha: new Date().toISOString(),
-            pedidos_hoy: Number(ventas.pedidos_hoy) || 0,
-            ingresos_hoy: parseFloat(ventas.ingresos_hoy) || 0,
-            cancelados_hoy: Number(ventas.cancelados_hoy) || 0,
-            ingresos_ayer: parseFloat(ventas.ingresos_ayer) || 0,
-            top_productos: topProductos.map(p => ({ nombre: p.nombre, unidades: Number(p.unidades) })),
-            pedidos_pendientes: pendientes.total,
-            clientes_nuevos: nuevosClientes.total
-        });
-
+        res.json(await consultas.cierreDia(db));
     } catch (error) {
         console.error('Error en cierre del día:', error);
         res.status(500).json({ error: 'Error al generar el cierre del día' });
@@ -1613,80 +1472,42 @@ app.get('/api/admin/cierre-dia', requiereAdmin, async (req, res) => {
 });
 
 // ============================================
-// 12.2 CONSULTAS PARA LAS CENTRALES DE AUTOMATIZACIÓN (n8n)
+// 12.2 CONSULTAS DE LAS CENTRALES DE AUTOMATIZACIÓN
 // ============================================
 
 // Historial de compras de un cliente (para clasificarlo como nuevo, recurrente o VIP)
 app.get('/api/admin/clientes/:id/historial', requiereAdmin, async (req, res) => {
     try {
-        const excluir = parseInt(req.query.excluir_pedido) || 0;
-        const [[historial]] = await db.query(
-            `SELECT COUNT(*) as pedidos_previos,
-                    COALESCE(SUM(total), 0) as total_gastado,
-                    MIN(fecha) as primera_compra
-             FROM pedidos
-             WHERE usuario_id = ? AND estado <> 'cancelado' AND id <> ?`,
-            [req.params.id, excluir]
-        );
-        res.json({
-            usuario_id: parseInt(req.params.id),
-            pedidos_previos: historial.pedidos_previos,
-            total_gastado: parseFloat(historial.total_gastado),
-            primera_compra: historial.primera_compra
-        });
+        res.json(await consultas.historialCliente(db, req.params.id, parseInt(req.query.excluir_pedido) || 0));
     } catch (error) {
         console.error('Error en historial de cliente:', error);
         res.status(500).json({ error: 'Error al consultar el historial' });
     }
 });
 
-// Ventas por producto en los últimos N días (devuelve una lista: n8n la recorre producto por producto)
+// Ventas por producto en los últimos N días
 app.get('/api/admin/ventas-productos', requiereAdmin, async (req, res) => {
     try {
         const dias = Math.min(365, parseInt(req.query.dias) || 30);
-        const productoId = parseInt(req.query.producto) || null;
-        const [filas] = await db.query(
-            `SELECT pr.id, pr.nombre, pr.stock, pr.stock_minimo, pr.precio,
-                    COALESCE(SUM(CASE WHEN p.id IS NOT NULL THEN dp.cantidad ELSE 0 END), 0) as unidades,
-                    COALESCE(SUM(CASE WHEN p.id IS NOT NULL THEN dp.subtotal ELSE 0 END), 0) as ingresos
-             FROM productos pr
-             LEFT JOIN detalle_pedido dp ON dp.producto_id = pr.id
-             LEFT JOIN pedidos p ON p.id = dp.pedido_id AND p.estado <> 'cancelado' AND p.fecha >= NOW() - INTERVAL ? DAY
-             ${productoId ? 'WHERE pr.id = ?' : ''}
-             GROUP BY pr.id
-             ORDER BY unidades DESC`,
-            productoId ? [dias, productoId] : [dias]
-        );
-        res.json(filas.map(f => ({
-            id: f.id,
-            nombre: f.nombre,
-            stock: f.stock,
-            stock_minimo: f.stock_minimo,
-            precio: parseFloat(f.precio),
-            unidades: Number(f.unidades),
-            ingresos: parseFloat(f.ingresos),
-            dias
-        })));
+        res.json(await consultas.ventasProductos(db, dias, parseInt(req.query.producto) || null));
     } catch (error) {
         console.error('Error en ventas por producto:', error);
         res.status(500).json({ error: 'Error al consultar ventas por producto' });
     }
 });
 
-// Reabastecer: suma unidades al stock (lo usa n8n cuando el dueño aprueba la compra)
+// Reabastecer: suma unidades al stock
 app.post('/api/admin/productos/:id/reabastecer', requiereAdmin, async (req, res) => {
     try {
         const cantidad = parseInt(req.body.cantidad);
         if (!(cantidad > 0 && cantidad <= 10000)) {
             return res.status(400).json({ error: 'Cantidad inválida' });
         }
-        const [result] = await db.query('UPDATE productos SET stock = stock + ? WHERE id = ?', [cantidad, req.params.id]);
-        if (result.affectedRows === 0) {
+        const producto = await consultas.reabastecer(db, req.params.id, cantidad);
+        if (!producto) {
             return res.status(404).json({ error: 'Producto no encontrado' });
         }
-        const [[producto]] = await db.query('SELECT id, nombre, stock, stock_minimo FROM productos WHERE id = ?', [req.params.id]);
-        console.log(`📦 Reabastecido: ${producto.nombre} +${cantidad} → ${producto.stock}`);
-        res.json({ success: true, agregado: cantidad, ...producto });
+        res.json({ success: true, ...producto });
     } catch (error) {
         console.error('Error al reabastecer:', error);
         res.status(500).json({ error: 'Error al reabastecer el producto' });
@@ -1696,50 +1517,15 @@ app.post('/api/admin/productos/:id/reabastecer', requiereAdmin, async (req, res)
 // Indicadores del periodo actual vs. el periodo anterior (para el analista semanal)
 app.get('/api/admin/indicadores', requiereAdmin, async (req, res) => {
     try {
-        const dias = Math.min(90, parseInt(req.query.dias) || 7);
-        const periodo = async (desde, hasta) => {
-            const [[v]] = await db.query(
-                `SELECT SUM(CASE WHEN estado <> 'cancelado' THEN 1 ELSE 0 END) as pedidos,
-                        COALESCE(SUM(CASE WHEN estado <> 'cancelado' THEN total ELSE 0 END), 0) as ingresos,
-                        SUM(CASE WHEN estado = 'cancelado' THEN 1 ELSE 0 END) as cancelados
-                 FROM pedidos WHERE fecha >= NOW() - INTERVAL ? DAY AND fecha < NOW() - INTERVAL ? DAY`,
-                [desde, hasta]
-            );
-            const [[c]] = await db.query(
-                `SELECT COUNT(*) as total FROM usuarios
-                 WHERE rol = 'cliente' AND fecha_registro >= NOW() - INTERVAL ? DAY AND fecha_registro < NOW() - INTERVAL ? DAY`,
-                [desde, hasta]
-            );
-            const [[e]] = await db.query(
-                `SELECT AVG(puntuacion) as promedio, COUNT(*) as total FROM encuestas
-                 WHERE fecha >= NOW() - INTERVAL ? DAY AND fecha < NOW() - INTERVAL ? DAY`,
-                [desde, hasta]
-            );
-            const [[ch]] = await db.query(
-                `SELECT COUNT(*) as chats, SUM(escalado_humano) as escalados FROM chats
-                 WHERE fecha_inicio >= NOW() - INTERVAL ? DAY AND fecha_inicio < NOW() - INTERVAL ? DAY`,
-                [desde, hasta]
-            );
-            const pedidos = Number(v.pedidos) || 0;
-            const ingresos = parseFloat(v.ingresos) || 0;
-            return {
-                pedidos,
-                ingresos,
-                cancelados: Number(v.cancelados) || 0,
-                ticket_promedio: pedidos ? Math.round(ingresos / pedidos) : 0,
-                clientes_nuevos: c.total,
-                satisfaccion: e.promedio ? parseFloat(parseFloat(e.promedio).toFixed(2)) : null,
-                encuestas: e.total,
-                chats: ch.chats,
-                chats_escalados: Number(ch.escalados) || 0
-            };
-        };
-        res.json({ dias, actual: await periodo(dias, 0), anterior: await periodo(dias * 2, dias) });
+        res.json(await consultas.indicadores(db, Math.min(90, parseInt(req.query.dias) || 7)));
     } catch (error) {
         console.error('Error en indicadores:', error);
         res.status(500).json({ error: 'Error al calcular indicadores' });
     }
 });
+
+// Rutas del motor de automatización (aprobación de compras, bitácora, auditoría de IA)
+registrarRutas(app, automatizacion, { db, requiereAdmin });
 
 // Red de seguridad: un error inesperado se anota en la consola, pero el servidor NO se apaga
 process.on('unhandledRejection', (error) => {
@@ -1760,7 +1546,7 @@ app.use('/api', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en ${TIENDA_URL}`);
     console.log(`📊 Panel admin: ${TIENDA_URL}/admin.html`);
-    console.log(`🔔 Webhooks n8n: ${process.env.N8N_WEBHOOK_URL || 'desactivados'}`);
+    console.log(MODO_N8N ? `🔔 Automatizaciones en n8n: ${process.env.N8N_WEBHOOK_URL || 'desactivadas'}` : `⚙️ Motor de automatización: activo · IA: ${automatizacion.ia.estado().map(p => p.nombre).join(' → ') || 'solo reglas'}`);
     if (!process.env.ADMIN_TOKEN_SECRET) {
         console.warn('⚠️ ADMIN_TOKEN_SECRET no definido: las sesiones se cierran al reiniciar');
     }
