@@ -28,3 +28,6 @@ generar_hash.js
 
 # Fotos de las facturas de prueba: se evalúan en local
 pruebas-facturas/fotos/
+
+# Variables para pegar en Railway (contienen claves)
+variables-railway.txt
