@@ -203,6 +203,11 @@
                 if (!consulta.ok) continue;
                 const f = await consulta.json();
                 if (f.estado === 'procesando') continue;
+                if (f.estado === 'confirmada' && !f.compra) continue; // la compra se está registrando
+                if (f.estado === 'confirmada') {
+                    const d = f.lectura.datos;
+                    return responder(`✅ *Factura #${f.id} registrada automáticamente*\n${d.proveedor} · ${d.numero}\nTotal: *${RA.pesos(d.total)}* · ${d.items.length} productos\nConfianza: ${Math.round(f.lectura.confianza_global * 100)} %, sin alertas.\n\n📦 El inventario ya se actualizó (compra #${f.compra.id}).`);
+                }
                 if (['lista', 'por_revisar'].includes(f.estado)) {
                     const d = f.lectura.datos;
                     const estado = f.estado === 'lista' ? '✅ Se ve bien.' : `🟡 Necesita revisión:\n${f.lectura.alertas.map(a => `• ${a}`).join('\n')}`;

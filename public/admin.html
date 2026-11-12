@@ -774,7 +774,7 @@
                     <td>${esc(f.numero_factura || '—')}</td>
                     <td class="derecha">${f.total === null ? '—' : pesos(f.total)}</td>
                     <td style="color:${colorConfianza(f.confianza)};font-weight:600">${textoConfianza(f.confianza === null ? null : parseFloat(f.confianza))}</td>
-                    <td><span class="estado ${ESTADOS_FACTURA[f.estado].clase}">${ESTADOS_FACTURA[f.estado].nombre}</span>${f.corregida ? '<span class="secundario">con correcciones</span>' : ''}</td>
+                    <td><span class="estado ${ESTADOS_FACTURA[f.estado].clase}">${ESTADOS_FACTURA[f.estado].nombre}</span>${f.corregida ? '<span class="secundario">con correcciones</span>' : (f.estado === 'confirmada' && !f.revisado_por ? '<span class="secundario">automática</span>' : '')}</td>
                     <td style="white-space:nowrap">${fechaHora(f.subido_en)}<span class="secundario">${esc(f.subido_por_nombre || '')} · ${esc(f.origen)}</span></td>
                     <td><button class="btn btn-fantasma btn-sm" data-ver-factura="${f.id}">${['lista', 'por_revisar'].includes(f.estado) ? 'Revisar' : 'Ver'}</button></td>
                 </tr>`).join('')}</tbody></table>`
@@ -850,7 +850,7 @@
             <h2 style="margin:0 0 4px">Factura #${f.id} <span class="estado ${ESTADOS_FACTURA[f.estado].clase}" style="vertical-align:middle">${ESTADOS_FACTURA[f.estado].nombre}</span></h2>
             <p style="color:var(--texto-suave);margin:0 0 14px;font-size:.88rem">Subida por ${esc(f.subido_por_nombre || '—')} el ${fechaHora(f.subido_en)}${f.modelo ? ` · Leída con ${esc(f.modelo)}` : ''}${f.zonas_tapadas !== null ? ` · ${f.zonas_tapadas} datos personales tapados antes de enviarla` : ''}</p>
             ${f.motivo ? `<div class="alerta alerta-error" style="margin-bottom:12px">${esc(f.motivo)}</div>` : ''}
-            ${f.compra ? `<div class="alerta" style="margin-bottom:12px;background:#e9f6ee;border:1px solid #bfe3cc;color:#22643f">✅ Registrada como compra #${f.compra.id}. El inventario ya se actualizó.</div>` : ''}
+            ${f.compra ? `<div class="alerta" style="margin-bottom:12px;background:#e9f6ee;border:1px solid #bfe3cc;color:#22643f">✅ Registrada como compra #${f.compra.id}. El inventario ya se actualizó.${!f.revisado_por ? ' Se confirmó automáticamente: confianza alta y ninguna alerta.' : ''}</div>` : ''}
             ${l && l.alertas.length && editable ? `<div class="alerta" style="margin-bottom:12px;background:#fff9e8;border:1px solid #e8d49a;color:#7a5a12"><strong>Revisa esto antes de confirmar:</strong><ul style="margin:6px 0 0;padding-left:18px">${l.alertas.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>` : ''}
             <div class="factura-revision">
                 <div>

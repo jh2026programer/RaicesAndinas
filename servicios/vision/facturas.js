@@ -35,7 +35,18 @@ function aExtraccion(d) {
     };
 }
 
-function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARPETA_FACTURAS }) {
+// La guía exige mostrar la lectura a una persona cuando la confianza es baja. Si es alta y no hay
+// ninguna alerta (cuentas, NIT, fecha y catálogo correctos), se confirma sola y dispara el inventario.
+// FACTURAS_AUTOCONFIRMAR=false obliga a revisar siempre.
+const autoconfirmarPorDefecto = () => process.env.FACTURAS_AUTOCONFIRMAR !== 'false';
+
+// Lo validado por las reglas, en el formato del formulario de revisión
+const formularioDesde = (d) => ({
+    ...d,
+    items: d.items.map(i => ({ descripcion: i.descripcion, cantidad: i.cantidad, valor_unitario: i.valor_unitario, subtotal: i.subtotal, producto_id: i.producto_id ?? '' }))
+});
+
+function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARPETA_FACTURAS, autoconfirmar = autoconfirmarPorDefecto() }) {
     const rutaDe = (archivo) => path.join(carpeta, path.basename(archivo));
 
     async function catalogo() {
@@ -103,7 +114,13 @@ function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARP
                     resultado: `${resultado.estado}: ${v.alertas.join(' ') || 'sin alertas'}`,
                     confianza: v.confianza_global, exito: true, duracion: 0
                 });
-                return { factura: f.id, estado: resultado.estado, confianza: v.confianza_global, zonas_tapadas: anon.zonas.length, alertas: v.alertas.length };
+
+                let automatica = false;
+                if (resultado.estado === 'lista' && autoconfirmar) {
+                    const r = await servicio.confirmar(f.id, formularioDesde(v.datos), null, { automatica: true });
+                    automatica = Boolean(r.ok);
+                }
+                return { factura: f.id, estado: automatica ? 'confirmada automáticamente' : resultado.estado, confianza: v.confianza_global, zonas_tapadas: anon.zonas.length, alertas: v.alertas.length };
             } catch (error) {
                 // Sin modelos disponibles: el motor la reintenta más tarde desde la cola
                 const agotada = (ctx.reencolados || 0) >= MAX_REENCOLADOS;
@@ -125,7 +142,7 @@ function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARP
         return valor;
     }
 
-    return {
+    const servicio = {
         carpeta,
         rutaDe,
 
@@ -165,7 +182,7 @@ function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARP
         },
 
         // El administrador confirma, con sus correcciones. Las reglas se aplican otra vez en el servidor.
-        async confirmar(id, datos, usuarioId, { forzar = false } = {}) {
+        async confirmar(id, datos, usuarioId, { forzar = false, automatica = false } = {}) {
             const [[f]] = await db.query('SELECT * FROM facturas WHERE id = ?', [id]);
             if (!f) return { error: 'Factura no encontrada', status: 404 };
             if (!['lista', 'por_revisar'].includes(f.estado)) return { error: `Esta factura está en estado "${f.estado}" y no se puede confirmar.`, status: 409 };
@@ -216,8 +233,11 @@ function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARP
             if (r.affectedRows === 0) return { error: 'Esta factura ya se confirmó.', status: 409 };
 
             await ia.auditar({
-                funcion: 'vision_confirmacion', usuarioId, proveedor: 'humano', modelo: f.modelo || '-',
-                entrada: `factura #${id}`, resultado: corregida ? 'Confirmada con correcciones del administrador' : 'Confirmada sin cambios',
+                funcion: 'vision_confirmacion', usuarioId, proveedor: automatica ? 'sistema' : 'humano', modelo: f.modelo || '-',
+                entrada: `factura #${id}`,
+                resultado: automatica
+                    ? `Confirmada automáticamente: confianza ${Math.round(f.confianza * 100)} % y ninguna alerta`
+                    : (corregida ? 'Confirmada con correcciones del administrador' : 'Confirmada sin cambios'),
                 confianza: f.confianza, exito: true, duracion: 0
             });
             motor.emitir('factura.confirmada', { factura_id: id });
@@ -234,6 +254,7 @@ function registrar(motor, { db, ia, extractor = crearExtractor(), carpeta = CARP
             return { ok: true };
         }
     };
+    return servicio;
 }
 
 // Para comparar lo que leyó la IA con lo confirmado, sin los datos calculados

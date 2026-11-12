@@ -43,7 +43,7 @@ function registrarRutas(app, facturas, { db, requiereAdmin }) {
         try {
             const [filas] = await db.query(
                 `SELECT f.id, f.estado, f.motivo, f.confianza, f.modelo, f.origen, f.nombre_original, f.subido_en, f.proveedor, f.numero_factura, f.total,
-                        f.zonas_tapadas, f.corregida, f.datos_ia, u.nombres as subido_por_nombre
+                        f.zonas_tapadas, f.corregida, f.revisado_por, f.datos_ia, u.nombres as subido_por_nombre
                  FROM facturas f LEFT JOIN usuarios u ON f.subido_por = u.id
                  ORDER BY f.id DESC LIMIT 100`
             );

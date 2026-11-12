@@ -65,7 +65,7 @@ Foto ─▶ OCR local (Tesseract) tapa datos personales ─▶ Gemini Vision dev
      ─▶ Reglas: cuentas, NIT, fecha y catálogo ─▶ Revisión de una persona ─▶ Confirmada
 ```
 
-- **Quién decide:** la IA propone y una persona confirma. Las reglas no confían en la IA: si las cuentas no dan, si el NIT no valida o si un dato tiene confianza menor a 85 %, la factura queda "Por revisar" con los campos dudosos resaltados.
+- **Quién decide:** la IA propone. Si la confianza es alta y no hay ninguna alerta, la factura se confirma sola y actualiza el inventario (se puede desactivar con `FACTURAS_AUTOCONFIRMAR=false`); si no, una persona la revisa. Las reglas no confían en la IA: si las cuentas no dan, si el NIT no valida o si un dato tiene confianza menor a 85 %, la factura queda "Por revisar" con los campos dudosos resaltados.
 - **Datos personales:** cédulas, teléfonos, correos, direcciones y nombres de empleados se tapan antes de salir del servidor; la pestaña "Lo que vio la IA" lo muestra. Si la foto es tan mala que el OCR no puede leerla, no se envía a nadie.
 - **Limitación conocida:** el nombre del proveedor y su NIT sí se envían porque son el dato que el proceso necesita, incluso si el proveedor es una persona natural. Para no enviar nada a internet se puede configurar visión local con `OLLAMA_VISION_MODELO`.
 - **Almacenamiento:** las imágenes quedan en `uploads/facturas/`, fuera de la carpeta pública, y solo se entregan con sesión de administrador. Se registra quién subió cada una y cuándo. Rechazar una factura borra su imagen.

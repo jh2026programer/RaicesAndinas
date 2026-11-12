@@ -189,6 +189,26 @@ function montarConfirmacion() {
 }
 const formulario = (items) => ({ proveedor: 'X', nit: '', numero: 'A-1', fecha: '2026-10-01', subtotal: 100, iva: 0, total: 100, items });
 
+test('confirmación automática: queda auditada como decisión del sistema, no de una persona', async () => {
+    const auditoria = [];
+    const catalogo = [{ id: 1, nombre: 'Café Orgánico' }];
+    const bd = { async query(sql) {
+        if (sql.includes('SELECT id, nombre FROM productos')) return [catalogo];
+        if (sql.includes('SELECT * FROM facturas')) return [[{ id: 1, estado: 'lista', confianza: 0.97, datos_ia: null }]];
+        if (sql.includes(`SET estado = 'confirmada'`)) return [{ affectedRows: 1 }];
+        return [[]];
+    } };
+    const motor = crearMotor({ db: bd, esperaBase: 1, registro: { error() {}, warn() {} } });
+    const eventos = [];
+    motor.emitir = (e) => eventos.push(e);
+    const servicio = facturas.registrar(motor, { db: bd, ia: { auditar: async (f) => auditoria.push(f) }, extractor: {}, carpeta: fs.mkdtempSync(path.join(os.tmpdir(), 'f-')) });
+    const r = await servicio.confirmar(1, formulario([{ descripcion: 'Café Orgánico', cantidad: 10, valor_unitario: 10, subtotal: 100, producto_id: 1 }]), null, { automatica: true });
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(auditoria[0].proveedor, 'sistema');
+    assert.match(auditoria[0].resultado, /automáticamente: confianza 97 %/);
+    assert.deepStrictEqual(eventos, ['factura.confirmada']);
+});
+
 test('confirmar: el administrador puede enlazar un producto que la IA no reconoció', async () => {
     const { servicio, guardado } = montarConfirmacion();
     const r = await servicio.confirmar(1, formulario([{ descripcion: 'Producto raro', cantidad: 10, valor_unitario: 10, subtotal: 100, producto_id: '2' }]), 9);
