@@ -2,6 +2,7 @@
 // Rutas del módulo de facturas. Todas exigen la sesión de un administrador.
 
 const multer = require('multer');
+const sharp = require('sharp');
 const fs = require('fs');
 const { TAMANO_MAXIMO } = require('./imagen');
 
@@ -106,8 +107,13 @@ function registrarRutas(app, facturas, { db, requiereAdmin }) {
             const anonimizada = req.query.version === 'anonimizada';
             const nombre = anonimizada ? f.archivo_anonimizado : f.archivo;
             if (!nombre || !fs.existsSync(facturas.rutaDe(nombre))) return res.status(404).json({ error: 'La imagen ya no está disponible' });
-            res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Type': anonimizada ? 'image/jpeg' : f.tipo_mime });
-            fs.createReadStream(facturas.rutaDe(nombre)).pipe(res);
+            res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+            if (f.tipo_mime === 'application/pdf' && !anonimizada) {
+                res.type('application/pdf');
+                return fs.createReadStream(facturas.rutaDe(nombre)).pipe(res);
+            }
+            const vista = await sharp(facturas.rutaDe(nombre)).rotate().resize({ width: 1400, height: 1400, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
+            res.type('image/jpeg').send(vista);
         } catch (error) {
             console.error('Error al entregar imagen:', error);
             res.status(500).json({ error: 'Error al consultar la imagen' });

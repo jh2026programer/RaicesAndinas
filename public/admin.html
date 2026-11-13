@@ -873,7 +873,7 @@
                     <h3 style="margin:12px 0 6px;font-size:1rem">Productos</h3>
                     <div class="tabla-contenedor" style="margin:0"><table class="tabla tabla-factura"><thead><tr><th>Descripción</th><th class="col-cant">Cant.</th><th class="col-valor">V. unitario</th><th class="col-valor">Subtotal</th><th class="col-conf"></th><th class="col-quitar"></th></tr></thead>
                         <tbody id="itemsFactura">${(d.items || []).map(filaItemFactura).join('')}</tbody></table></div>
-                    ${editable ? '<button type="button" class="btn btn-fantasma btn-sm" id="btnAgregarItem" style="margin:6px 0 12px">+ Agregar producto</button>' : ''}
+                    ${editable ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px"><button type="button" class="btn btn-fantasma btn-sm" id="btnAgregarItem">+ Agregar producto</button><button type="button" class="btn btn-fantasma btn-sm" id="btnRecalcular">🧮 Recalcular totales</button></div>' : ''}
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
                         ${campoFactura('subtotal', 'Subtotal', d.subtotal, c.subtotal, { tipo: 'number' })}
                         ${campoFactura('iva', 'IVA', d.iva, c.iva, { tipo: 'number' })}
@@ -889,6 +889,7 @@
                 </form>
             </div>`;
         abrirModal('modalFactura');
+        document.querySelectorAll('[data-item-factura]').forEach(completarFila);
         cargarImagenFactura(f.id, 'original', 'imagenFactura');
     }
 
@@ -919,6 +920,24 @@
         };
     }
 
+    // Completa lo que falta con lo que hay: cantidad × valor = subtotal, y subtotal + IVA = total
+    function completarFila(fila) {
+        const campo = (c) => fila.querySelector(`[data-c="${c}"]`);
+        const n = (c) => (campo(c).value.trim() === '' ? null : Number(campo(c).value));
+        const [cant, valor, sub] = [n('cantidad'), n('valor_unitario'), n('subtotal')];
+        if (cant === null && valor && sub !== null && Number.isInteger(sub / valor)) campo('cantidad').value = sub / valor;
+        else if (valor === null && cant && sub !== null) campo('valor_unitario').value = Math.round(sub / cant);
+        else if (sub === null && cant !== null && valor !== null) campo('subtotal').value = cant * valor;
+    }
+
+    function recalcularTotales() {
+        const subtotales = [...document.querySelectorAll('[data-item-factura] [data-c="subtotal"]')].map(i => Number(i.value) || 0);
+        const subtotal = subtotales.reduce((a, b) => a + b, 0);
+        const iva = Number(document.getElementById('ff-iva').value) || 0;
+        document.getElementById('ff-subtotal').value = subtotal;
+        document.getElementById('ff-total').value = subtotal + iva;
+    }
+
     async function confirmarFactura(forzar = false) {
         const f = estado.facturaAbierta;
         const boton = document.getElementById('btnConfirmarFactura');
@@ -933,6 +952,12 @@
         document.getElementById('mensajeFactura').innerHTML = `<div class="alerta alerta-error" style="margin-top:10px">${esc(data.error)}</div>`;
         if (data.confirmable && confirm(`${data.error}\n\n¿Guardarla de todos modos? Quedará registrado que la confirmaste así.`)) confirmarFactura(true);
     }
+
+    // Al escribir en una fila, se completa el dato que falte
+    document.addEventListener('change', (e) => {
+        const fila = e.target.closest('[data-item-factura]');
+        if (fila && e.target.matches('[data-c="cantidad"], [data-c="valor_unitario"], [data-c="subtotal"]')) completarFila(fila);
+    });
 
     document.getElementById('fotoCamara').addEventListener('change', (e) => { subirFacturas([...e.target.files], 'celular'); e.target.value = ''; });
     document.getElementById('fotoArchivo').addEventListener('change', (e) => { subirFacturas([...e.target.files], 'web'); e.target.value = ''; });
@@ -1109,6 +1134,10 @@
             return cargarImagenFactura(estado.facturaAbierta.id, boton.dataset.versionFactura, 'imagenFactura');
         }
         if (el('[data-quitar-item]')) return el('[data-quitar-item]').closest('tr').remove();
+        if (el('#btnRecalcular')) {
+            document.querySelectorAll('[data-item-factura]').forEach(completarFila);
+            return recalcularTotales();
+        }
         if (el('#btnAgregarItem')) return document.getElementById('itemsFactura').insertAdjacentHTML('beforeend', filaItemFactura());
         if (el('[data-reintentar-factura]')) {
             return adminApi(`/api/admin/facturas/${el('[data-reintentar-factura]').dataset.reintentarFactura}/reintentar`, { method: 'POST' }).then(({ ok, data }) => {

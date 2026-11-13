@@ -61,6 +61,11 @@ function etiquetaDe(texto) {
 // Números sueltos con forma de teléfono o cédula. Debajo del encabezado de la tabla nunca se aplica:
 // allí están las cantidades y los precios, que el proceso necesita.
 function numerosDeContacto(palabras) {
+    // Un precio ($ o miles con punto: "9.600", "183.600,00") junto a otros números es una fila de productos
+    const conPrecio = palabras.filter(p => /\$|\d{1,3}(?:[.,]\d{3})+/.test(p.texto));
+    const conNumeros = palabras.filter(p => /\d/.test(p.texto));
+    const cedulaSola = conPrecio.length === 1 && !/\$|,\d{2}$/.test(conPrecio[0].texto) && conNumeros.length === 1;
+    if (conPrecio.length && !cedulaSola) return [];
     const candidatas = palabras.filter(p => /\d/.test(p.texto) && !/\$/.test(p.texto));
     const digitos = candidatas.reduce((n, p) => n + p.texto.replace(/\D/g, '').length, 0);
     return digitos >= MIN_DIGITOS_TELEFONO ? candidatas : [];

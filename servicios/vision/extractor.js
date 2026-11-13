@@ -6,7 +6,7 @@ const { z } = require('zod');
 const { HumanMessage, SystemMessage } = require('@langchain/core/messages');
 const { proveedoresDesdeEntorno, errorSeguro, conLimite, tipoDeFalla } = require('../ia');
 
-const MODELOS_VISION = 'gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-flash-lite-latest,gemini-3.5-flash,gemini-3.6-flash';
+const MODELOS_VISION = 'gemini-3.5-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-flash-lite-latest';
 const TIEMPO_POR_MODELO_MS = 45000;
 // Lo leído solo con OCR es menos fiable: esa lectura siempre pasa por revisión humana
 const CONFIANZA_MAXIMA_OCR = 0.7;

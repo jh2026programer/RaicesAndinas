@@ -176,6 +176,9 @@ test('anonimizar: reconoce un teléfono sin etiqueta, pero no confunde valores n
     const tabla = anonimizar('Descripción Cant. V. unitario Subtotal', '1360 800 00', 'Aceite 12 25.200 302.400');
     assert.deepStrictEqual(tabla.zonas, []);
     assert.deepStrictEqual(anonimizar('Café Orgánico 18 $10.800 $183.600').zonas, []);
+    // Aunque el OCR no encuentre el encabezado de la tabla, una fila con precios no se tapa
+    assert.deepStrictEqual(anonimizar('Té de Hierbas 18 $9.600 $172.800').zonas, []);
+    assert.deepStrictEqual(anonimizar('Mermelada 17 10.800,00 183.600,00').zonas, []);
     assert.deepStrictEqual(anonimizar('Panela 4 $9.000 $36.000').zonas, []);
     assert.deepStrictEqual(anonimizar('Factura No. 1234567 Fecha 2026-09-02').zonas, []);
     assert.deepStrictEqual(anonimizar('Total 1234567').zonas, []);
