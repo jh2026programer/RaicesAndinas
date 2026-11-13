@@ -191,6 +191,17 @@ test('anonimizar: una fila de la tabla leída fuera de orden sigue sin taparse',
     assert.strictEqual(zonas[0].caja.y0, 100);
 });
 
+test('anonimizar: si el OCR no lee el encabezado de la tabla, las filas bajo "Número / Fecha" no se tapan', () => {
+    const fila = (texto, y) => ({ texto, palabras: texto.split(' ').map((t, i) => ({ texto: t, caja: { x0: i * 100, y0: y, x1: i * 100 + 90, y1: y + 20 } })) });
+    const { zonas } = detectarDatosPersonales([
+        fila('Bodega 645 8821', 100),
+        fila('Factura de venta Número: A-3274 Fecha: 2026-10-26', 200),
+        fila('Te de Hierbas 18 9600 172800', 400),
+        fila('Subtotal 832800', 600)
+    ]);
+    assert.deepStrictEqual(zonas.map(z => z.caja.y0), [100]);
+});
+
 test('anonimizar: palabras parecidas a una etiqueta pero distintas no tapan nada', () => {
     assert.deepStrictEqual(anonimizar('Descripción Cant. V. unitario Subtotal').zonas, []);
     assert.deepStrictEqual(anonimizar('Comprador: Raíces Andinas S.A.S.').zonas, []);

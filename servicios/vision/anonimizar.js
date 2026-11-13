@@ -80,9 +80,14 @@ function detectarDatosPersonales(lineas) {
     const zonas = [];
     const textoSeguro = [];
 
-    // El OCR puede leer las líneas en desorden: la tabla se ubica por su posición en la hoja
-    const encabezados = lineas.filter(l => l.palabras.length && ENCABEZADO_TABLA.test(l.palabras.map(p => p.texto).join(' ')));
-    const inicioTabla = encabezados.length ? Math.min(...encabezados.flatMap(l => l.palabras.map(p => p.caja.y0))) : Infinity;
+    // El OCR puede leer las líneas en desorden: las zonas se ubican por su posición en la hoja.
+    // Los datos de contacto van en el encabezado, por encima de la línea "Factura / Número / Fecha";
+    // por eso los números sin etiqueta solo se tapan allí, aunque el OCR no encuentre la tabla.
+    const yMinima = (patron) => {
+        const ys = lineas.filter(l => l.palabras.length && patron.test(l.palabras.map(p => p.texto).join(' '))).flatMap(l => l.palabras.map(p => p.caja.y0));
+        return ys.length ? Math.min(...ys) : Infinity;
+    };
+    const inicioTabla = Math.min(yMinima(ENCABEZADO_TABLA), yMinima(/n[uú]mero|fecha|factura/i));
 
     for (const linea of lineas) {
         const palabras = linea.palabras.filter(p => p.texto.trim());
