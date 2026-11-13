@@ -1,7 +1,7 @@
 # RaicesAndinas
 Sistema de información empresarial para la comercialización de productos andinos
 
-**Aplicativo publicado:** https://raicesandinas-production.up.railway.app
+**Aplicativo publicado:** https://raicesandinas-production.up.railway.app · **Video de demostración:** https://youtu.be/MTjbjjZELio
 
 Tienda en Node.js + Express + MySQL con panel de administración, chatbot con IA y un **motor de automatización propio en código** (tercer corte: ya no depende de n8n).
 
